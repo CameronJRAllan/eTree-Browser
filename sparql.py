@@ -182,11 +182,9 @@ class SPARQL():
     else:
       return ''
 
-  def performanceQuery(self, dateFrom, dateTo, artists, genres, locations, limit):
+  def performSearch(self, dateFrom, dateTo, artists, genres, locations, limit):
     """
-    Updates the map view with the results of the executed SPARQL query.
-
-    The function iterates through the results, calling a JavaScript function to add a point and associated info-box for each, to the map view.
+    Executes a basic search on the SPARQL end-point.
 
     Parameters
     ----------
@@ -225,7 +223,6 @@ class SPARQL():
     """
     artists = artists.split(',')
     genres = genres.split(',')
-    # locations = locations.split(',')
 
     fields = " ?label ?performer ?description ?location ?place"
     whereString = """
@@ -237,7 +234,7 @@ class SPARQL():
      ?location etree:location ?place.
      """
 
-    # If custom date range entered
+    # If custom date range entered (assuming default is 1950-01-01?)
     if dateFrom != '1950-01-01':
       # Calculate a filter string for this
       dateString = self.dateRange(dateFrom, dateTo)
@@ -247,7 +244,7 @@ class SPARQL():
     # If limit is 0
     if (limit == 0):
       limit = ''
-    # If customer limit entered
+    # If custom limit entered
     else:
       limit = 'LIMIT ' + str(limit)
 
@@ -264,15 +261,14 @@ class SPARQL():
           PREFIX mo:<http://purl.org/ontology/mo/>
           PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
           PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
-          PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
           PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
         
           SELECT DISTINCT """ + "?label ?name ?place ?location" \
           + """  WHERE {    """ \
           + str(whereString) \
-          + str(artistString) + '                                ' \
-          + str(genreString) + '                                ' \
-          + str(locationString) + '                                ' \
+          + str(artistString) \
+          + str(genreString)   \
+          + str(locationString) \
           + str(dateString) + """      } """ \
           + str('GROUP BY ?label') + ' ' \
           + str(limit)
