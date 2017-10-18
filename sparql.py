@@ -1,5 +1,5 @@
-from SPARQLWrapper import SPARQLWrapper, JSON
-import calendar, cache, datetime, sys
+from SPARQLWrapper import SPARQLWrapper, JSON, POSTDIRECTLY
+import datetime
 
 class SPARQL():
   def __init__(self):
@@ -11,8 +11,35 @@ class SPARQL():
     """
     self.sparql = SPARQLWrapper("http://etree.linkedmusic.org/sparql")
     self.sparql.setReturnFormat(JSON)
+    self.sparql.setMethod("POST")
 
-  def getTracklist(self, label):
+  def get_release_properties(self, releaseName):
+    queryGetURI = """
+                    SELECT * {{
+                      ?s ?p "{0}".
+                    }}
+                    """.format(releaseName)
+    self.sparql.setQuery(queryGetURI)
+    queryResults = self.sparql.query().convert()
+
+    queryGetProperties = """
+                            SELECT * {{
+                              <{0}> ?p ?o.
+                            }}
+                         """.format(str(queryResults['results']['bindings'][0]['s']['value']))
+    self.sparql.setQuery(queryGetProperties)
+    return self.sparql.query().convert()
+
+  def get_release_subproperties(self, subject):
+    queryGetProperties = """
+                            SELECT * {{
+                              <{0}> ?p ?o.
+                            }}
+                         """.format(str(subject))
+    self.sparql.setQuery(queryGetProperties)
+    return self.sparql.query().convert()
+
+  def get_tracklist(self, label):
     """
     Retrieves a track-list for a given recording.
 
@@ -46,7 +73,7 @@ class SPARQL():
     self.sparql.setQuery(queryString)
     return self.sparql.query().convert()
 
-  def getArtistReleases(self, filterField, filterStr, sparqlField, sparqlTriple):
+  def get_artist_releases(self, filterField, filterStr, sparqlField, sparqlTriple):
     """
     Retrieves all the releases by a particular artist.
 
@@ -97,7 +124,7 @@ class SPARQL():
 
       # Add each filter statement
       for item in filterStr:
-        queryString += """?{0}="{1}" ||\n""".format(filterField, item)
+        queryString += """?{0}="{1}" ||\n""".format(filterField, item.strip())
 
       # Add suffix to be syntactically correct
       queryString = queryString[:-3]
@@ -106,16 +133,19 @@ class SPARQL():
     # If we have a singlular filter (hence type STRING)
     else:
       if len(filterField) > 0:
-        queryString +=  "FILTER(?{0}='{1}')".format(filterField, filterStr)
+        queryString +=  """FILTER(?{0}="{1}")""".format(filterField, filterStr)
 
     # Add ending line of query
     queryString += "\n}  GROUP BY (?name)"
 
     # Set and run query
+    print('\n\n')
+    print(queryString)
+    print('\n\n')
     self.sparql.setQuery(queryString)
     return self.sparql.query().convert()
 
-  def executeString(self, queryString):
+  def execute_string(self, queryString):
     """
     Executes a string representing a SPARQL query.
 
@@ -140,7 +170,7 @@ class SPARQL():
     except Exception:
       raise ('Error occured')
 
-  def dateRange(self, start, end):
+  def date_range(self, start, end):
     """
     Creates a filter for a given range of dates.
 
@@ -162,27 +192,36 @@ class SPARQL():
     # Normalize dates
     startDate = datetime.datetime.strptime(start, "%Y-%m-%d").date()
     endDate = datetime.datetime.strptime(end, "%Y-%m-%d").date()
-    dateRange = 'FILTER ('
-
-    # Calculate date difference between start + end
     delta = endDate - startDate
 
     # If there are days to be filtered
     if (delta.days > 0):
-      # Generate filter string
-      for i in range(delta.days + 1):
-        dateRange = dateRange + """ str(?date) = '""" + str(
-          startDate + datetime.timedelta(days=i)) + """' \n                ||"""
+    #   return """FILTER (?date > "{0}"^^xsd:dateTime)
+    #             FILTER (?date < "{1}"^^xsd:dateTime)""".format(startDate, endDate)
+    # else:
+    #   return ''
 
-      # Add suffix
-      dateRange = dateRange[:-2]
-      dateRange = dateRange + ')'
+      dateRange = 'FILTER ('
 
-      return dateRange
+      # Calculate date difference between start + end
+      delta = endDate - startDate
+
+      # If there are days to be filtered
+      if (delta.days > 0):
+        # Generate filter string
+        for i in range(delta.days + 1):
+          dateRange = dateRange + """ str(?date) = '""" + str(
+            startDate + datetime.timedelta(days=i)) + """' \n                ||"""
+
+        # Add suffix
+        dateRange = dateRange[:-2]
+        dateRange = dateRange + ')'
+
+        return dateRange
     else:
       return ''
 
-  def performSearch(self, dateFrom, dateTo, artists, genres, locations, limit):
+  def perform_search(self, dateFrom, dateTo, artists, genres, locations, limit):
     """
     Executes a basic search on the SPARQL end-point.
 
@@ -224,20 +263,21 @@ class SPARQL():
     artists = artists.split(',')
     genres = genres.split(',')
 
-    fields = " ?label ?performer ?description ?location ?place"
+    fields = " ?label ?performer ?description ?location ?place ?date"
     whereString = """
      ?art skos:prefLabel ?label.
      ?art mo:performer ?performer. 
      ?art etree:description ?description.
      ?performer foaf:name ?name.
      ?art event:place ?location.
+     ?art etree:date ?date.
      ?location etree:location ?place.
      """
 
     # If custom date range entered (assuming default is 1950-01-01?)
-    if dateFrom != '1950-01-01':
+    if dateFrom != '1950-01-01' or dateTo != '2000-01-01':
       # Calculate a filter string for this
-      dateString = self.dateRange(dateFrom, dateTo)
+      dateString = self.date_range(dateFrom, dateTo)
     else:
       dateString = ''
 
@@ -249,13 +289,13 @@ class SPARQL():
       limit = 'LIMIT ' + str(limit)
 
     # Generate filter
-    artistString = self.textParse(artists, 1)
-    genreString = self.textParse(genres, 2)
+    artistString = self.text_parse(artists, 1)
+    genreString = self.text_parse(genres, 2)
     if len(genreString) > 2:
       fields = fields + ' ?genre'
       whereString = whereString + '?performer etree:mbTag ?genre.'
-    locationString = self.textParse(locations, 3)
-    # lineageString = textParse(lineage, 4)
+    locationString = self.text_parse(locations, 3)
+    # lineageString = text_parse(lineage, 4)
 
     q = """PREFIX etree:<http://etree.linkedmusic.org/vocab/>
           PREFIX mo:<http://purl.org/ontology/mo/>
@@ -263,7 +303,7 @@ class SPARQL():
           PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
           PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
         
-          SELECT DISTINCT """ + "?label ?name ?place ?location" \
+          SELECT DISTINCT """ + "?label ?name ?place ?location ?date" \
           + """  WHERE {    """ \
           + str(whereString) \
           + str(artistString) \
@@ -272,10 +312,10 @@ class SPARQL():
           + str(dateString) + """      } """ \
           + str('GROUP BY ?label') + ' ' \
           + str(limit)
-
+    print(q)
     return q
 
-  def textParse(self, inputList, type):
+  def text_parse(self, inputList, type):
     """
     Generates filter string for a given list, and type.
 
@@ -321,4 +361,5 @@ class SPARQL():
       filterString = filterString[:-3].strip()
       filterString += "')\n"
 
+    print(filterString)
     return filterString
