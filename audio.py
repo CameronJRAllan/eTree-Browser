@@ -15,9 +15,6 @@ class Audio():
     self.update_progress_signal = kwargs['update_track_progress']
     self.on_track_finished_signal = kwargs['track_finished']
 
-    print('URL: ' + str(url))
-    print('SEEK: ' + str(kwargs['seek']))
-
     # Get duration of track
     duration = subprocess.check_output(['ffprobe', '-i', url, '-show_entries', 'format=duration', '-v', 'quiet',
                                         '-of', 'csv=%s' % ("p=0")])
@@ -71,12 +68,14 @@ class Audio():
         # Write to stream
         self.stream.write(raw_audio_chunk)
 
-    if self.main.thread_flag:
-      # Get next track
-      self.stream.stop_stream()
-      self.stream.close()
-      self.pyAudio.terminate()
-      self.on_track_finished_signal.emit()
+    # Get next track
+    self.stream.stop_stream()
+    self.stream.close()
+    self.stream = None
+    self.pipeline = None
+    self.pyAudio.terminate()
+    self.on_track_finished_signal.emit()
+    return
 
   def get_url(self):
     return self.currentUrl
@@ -96,6 +95,10 @@ class Audio():
       # Change system volume using PulseAudio
       subprocess.call(["amixer", "-D", "pulse", "sset", "Master", str(value) + "%"])
 
+      return True
+    else:
+      return False
+
   def set_seek(self, seekTime):
     if self.currentUrl:
       # Format seek time as HH:MM:SS
@@ -103,3 +106,5 @@ class Audio():
 
       # Restart stream at this new time
       self.ffmpeg_pipeline(self.currentUrl, seek=seekTime)
+    else:
+      return False
