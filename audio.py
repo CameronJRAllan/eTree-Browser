@@ -3,15 +3,13 @@ import subprocess
 import numpy
 import time
 class Audio():
-  def __init__(self, main):
-    self.main = main
+  def __init__(self, prog):
+    self.pyAudio = pyaudio.PyAudio()  # PyAudio helps to reproduce raw data in pipe.
     self.is_playing = False
     self.currentUrl = None
-    # self.main = prog
+    self.main = prog
 
   def ffmpeg_pipeline(self, url, **kwargs):
-    self.pyAudio = pyaudio.PyAudio()  # PyAudio helps to reproduce raw data in pipe.
-
     # Save URL for future seeking
     self.currentUrl = url
     self.update_progress_signal = kwargs['update_track_progress']
@@ -84,15 +82,11 @@ class Audio():
 
   def change_play_state(self):
     self.pyAudio = None
-
-    try:
-      if self.is_playing:
-        self.stream.stop_stream()
-      else:
-        self.stream.start_stream()
-      self.is_playing = not self.is_playing
-    except AttributeError as e:
-      print('self.Stream not set')
+    if self.is_playing:
+      self.stream.stop_stream()
+    else:
+      self.stream.start_stream()
+    self.is_playing = not self.is_playing
 
   def set_volume(self, value):
     # If value is valid
