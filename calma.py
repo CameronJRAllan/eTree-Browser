@@ -3,6 +3,7 @@ import requests
 from urlextract import URLExtract
 import tarfile
 import rdflib
+import pprint
 import urllib.request
 class Calma():
   def __init__(self):
@@ -16,13 +17,15 @@ class Calma():
     self.sparql.setReturnFormat(JSON)
     self.sparql.setMethod("POST")
     self.extractURL = URLExtract()
-    # self.get_features_track('http://archive.org/download/CVB2003-02-02.BBCstream-flac16/CVB2003-02-02-BBCstream-t01
-    # .flac')
+    self.keyInfo = None
+    # self.get_features_track('http://archive.org/download/CVB2003-02-02.BBCstream-flac16/CVB2003-02-02-BBCstream-t01.flac')
+
 
   def get_features_track(self, trackAudioURL):
+    self.keyInfo = None
+
     # http://archive.org/download/dbt2004-05-08.4011s.flac16/dbt2004-05-08d1t02.flac
     # Get parent sub-event for this track
-    self.keyInfo = None
     self.sparql.setQuery("""
                             PREFIX etree:<http://etree.linkedmusic.org/vocab/>
                             PREFIX calma: <http://calma.linkedmusic.org/vocab/>
@@ -31,7 +34,12 @@ class Calma():
                             ?s etree:audio <{0}>.
                             }} LIMIT 1
                          """.format(trackAudioURL))
-    trackURL = self.sparql.query().convert()['results']['bindings'][0]['s']['value']
+
+    subEvent = self.sparql.query().convert()
+    if len(subEvent['results']['bindings']) > 0:
+      trackURL = self.sparql.query().convert()['results']['bindings'][0]['s']['value']
+    else:
+      return False
 
     self.sparql.setQuery("""
                             PREFIX etree:<http://etree.linkedmusic.org/vocab/>
@@ -47,13 +55,13 @@ class Calma():
     if len(calmaURL['results']['bindings']) == 0:
       return False
     else:
-      self.keyInfo = self.get_calma_data(calmaURL)
+      self.keyInfo = self.get_calma_data(calmaURL['results']['bindings'][0]['o']['value'])
       return True
 
   def get_calma_data(self, calmaURL):
     # If calma data found
     # Get top-level analysis information
-    url = calmaURL['results']['bindings'][0]['o']['value'] + '/analyses.ttl'
+    url = calmaURL + '/analyses.ttl'
     r = requests.get(url, stream=True)
     g = rdflib.Graph()
     g.parse(r.raw, format="n3")
@@ -115,10 +123,11 @@ class Calma():
 
     # Sort by time
     finalList.sort(key=lambda x: x[0])
+
     return finalList
 
   def get_key_at_time(self, time):
-    if self.keyInfo:
+    if self.keyInfo and time >= 0:
       return (min(self.keyInfo, key=lambda x:abs(x[0]-time))[1])
     else:
       return None
