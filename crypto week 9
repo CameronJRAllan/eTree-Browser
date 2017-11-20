@@ -1,0 +1,14 @@
+Needham-Schroeder Protocol has 2 uses:
+  Create communication between two entities within a domain.
+  Single sign-on implementations.
+
+Two passes:
+  Secret key distibution with mutual authentication using public key cryptosystem + timestamps.
+
+Three passes (same as above but uses digital signatures + nonce):  
+  An alternative to using time-stamps is using a Nonce (a random number chosen by the verifier).
+    Provides "freshness"
+
+  
+
+

@@ -1,0 +1,9 @@
+requests
+qtawesome
+rdflib
+SPARQLWrapper
+matplotlib
+numpy
+geopy
+datetime
+pyqt5

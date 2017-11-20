@@ -1,0 +1,282 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>sparql module &#8212; Meta-Data Browser for Live Music  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sparql">
+<span id="sparql-module"></span><h1>sparql module<a class="headerlink" href="#module-sparql" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="sparql.SPARQL">
+<em class="property">class </em><code class="descclassname">sparql.</code><code class="descname">SPARQL</code><a class="reference internal" href="_modules/sparql.html#SPARQL"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="sparql.SPARQL.date_range">
+<code class="descname">date_range</code><span class="sig-paren">(</span><em>start</em>, <em>end</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.date_range"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.date_range" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a filter for a given range of dates.</p>
+<p>SPARQL supports filtering, and this may be used to provide more specific results for a given date range.</p>
+<dl class="docutils">
+<dt>start <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The start date.</dd>
+<dt>end <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The end date.</dd>
+</dl>
+<dl class="docutils">
+<dt>dateRange <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A structured string that is inserted into the query to provide date filtering.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.execute_string">
+<code class="descname">execute_string</code><span class="sig-paren">(</span><em>queryString</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.execute_string"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.execute_string" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes a string representing a SPARQL query.</p>
+<p>Having a general purpose “execute whatever this query is” is quite useful.</p>
+<dl class="docutils">
+<dt>queryString <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The SPARQL query string to be executed.</dd>
+</dl>
+<dl class="docutils">
+<dt>results <span class="classifier-delimiter">:</span> <span class="classifier">dictionary</span></dt>
+<dd>A JSON representation of the results returned by the end-point.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.get_artist_from_tracklist">
+<code class="descname">get_artist_from_tracklist</code><span class="sig-paren">(</span><em>tracklistURL</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.get_artist_from_tracklist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.get_artist_from_tracklist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves the artist from a particular track-list.</p>
+<dl class="docutils">
+<dt>tracklistURL <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A URL in the tracklist, for which we want to find the performer.</dd>
+</dl>
+<dl class="docutils">
+<dt>artistName <span class="classifier-delimiter">:</span> <span class="classifier">str</span></dt>
+<dd>The name of the artist found.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.get_artist_releases">
+<code class="descname">get_artist_releases</code><span class="sig-paren">(</span><em>filterField</em>, <em>filterStr</em>, <em>sparqlField</em>, <em>sparqlTriple</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.get_artist_releases"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.get_artist_releases" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves all the releases by a particular artist.</p>
+<dl class="docutils">
+<dt>filterField <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The filter field.</dd>
+<dt>filterStr <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The filter string.</dd>
+<dt>sparqlField <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>If a custom field is required (e.g genre), this is the field value required.</dd>
+<dt>sparqlTriple <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>If a custom field is required (e.g genre), this is the triple required.</dd>
+</dl>
+<dl class="docutils">
+<dt>results <span class="classifier-delimiter">:</span> <span class="classifier">dictionary</span></dt>
+<dd>A JSON representation of the results returned by the end-point.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.get_release_properties">
+<code class="descname">get_release_properties</code><span class="sig-paren">(</span><em>releaseName</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.get_release_properties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.get_release_properties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves the properties of a given release.</p>
+<dl class="docutils">
+<dt>releaseName <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>Name of the release.</dd>
+</dl>
+<dl class="docutils">
+<dt>properties <span class="classifier-delimiter">:</span> <span class="classifier">dict</span></dt>
+<dd>The properties found.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.get_release_subproperties">
+<code class="descname">get_release_subproperties</code><span class="sig-paren">(</span><em>subject</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.get_release_subproperties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.get_release_subproperties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves the sub-properties of a given release.</p>
+<dl class="docutils">
+<dt>subject <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The release for which we want to retrieve the sub-properties of.</dd>
+</dl>
+<dl class="docutils">
+<dt>results <span class="classifier-delimiter">:</span> <span class="classifier">dictionary</span></dt>
+<dd>A JSON dictionary of the properties returned.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.get_tracklist">
+<code class="descname">get_tracklist</code><span class="sig-paren">(</span><em>label</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.get_tracklist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.get_tracklist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves a track-list for a given recording.</p>
+<dl class="docutils">
+<dt>label <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The label of the released used to identify the tracks which belong to it.</dd>
+</dl>
+<dl class="docutils">
+<dt>results <span class="classifier-delimiter">:</span> <span class="classifier">dict</span></dt>
+<dd>A JSON representation of the results returned by the end-point.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.get_tracklist_grouped">
+<code class="descname">get_tracklist_grouped</code><span class="sig-paren">(</span><em>label</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.get_tracklist_grouped"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.get_tracklist_grouped" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.get_venue_information">
+<code class="descname">get_venue_information</code><span class="sig-paren">(</span><em>label</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.get_venue_information"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.get_venue_information" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves venue information for a particular release.</p>
+<dl class="docutils">
+<dt>label <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>The release for which we want to retrieve the venue info of.</dd>
+</dl>
+<dl class="docutils">
+<dt>resultsDict <span class="classifier-delimiter">:</span> <span class="classifier">dict</span></dt>
+<dd>A dictionary of a mixture of the GeoNames and LastFM data</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.parse_order_by">
+<code class="descname">parse_order_by</code><span class="sig-paren">(</span><em>orderBy</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.parse_order_by"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.parse_order_by" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a filter string for ordering by a give field.</p>
+<dl class="docutils">
+<dt>orderBy <span class="classifier-delimiter">:</span> <span class="classifier">str</span></dt>
+<dd>The input field.</dd>
+</dl>
+<dl class="docutils">
+<dt>filterString <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>An ORDER-BY string relative to the input field.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.perform_search">
+<code class="descname">perform_search</code><span class="sig-paren">(</span><em>dateFrom</em>, <em>dateTo</em>, <em>artists</em>, <em>genres</em>, <em>locations</em>, <em>limit</em>, <em>trackName</em>, <em>countries</em>, <em>customSearchString</em>, <em>venue</em>, <em>orderBy</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.perform_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.perform_search" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes a basic search on the SPARQL end-point.</p>
+<dl class="docutils">
+<dt>dateFrom <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>Start date for our date range filter.</dd>
+<dt>dateTo <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>End date for our date range filter.</dd>
+<dt>artists <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A list of artists, comma seperated.</dd>
+<dt>genres <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A list of genres, comma seperated.</dd>
+<dt>locations <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A list of locations, comma seperated.</dd>
+<dt>lineage <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A list of lineage steps, comma seperated.</dd>
+<dt>limit <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>Number of results to be returned.</dd>
+<dt>distinct <span class="classifier-delimiter">:</span> <span class="classifier">boolean</span></dt>
+<dd>Represents whether or not results should be distinct (i.e. no duplicates).</dd>
+<dt>fields <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A list of fields, comma seperated.</dd>
+</dl>
+<dl class="docutils">
+<dt>q <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A string which may be executed as a SPARQL query.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sparql.SPARQL.text_parse">
+<code class="descname">text_parse</code><span class="sig-paren">(</span><em>inputList</em>, <em>intType</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/sparql.html#SPARQL.text_parse"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#sparql.SPARQL.text_parse" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates filter string for a given list, and type.</p>
+<p>A complex query may have several seperate filters applied, in which case it makes sense to move this into
+it’s own class. The type is used to identify the attribute being filtered.</p>
+<dl class="docutils">
+<dt>inputList <span class="classifier-delimiter">:</span> <span class="classifier">string[]</span></dt>
+<dd>A list of filter conditions</dd>
+<dt>type <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The attribute to be filtered</dd>
+</dl>
+<dl class="docutils">
+<dt>filterString <span class="classifier-delimiter">:</span> <span class="classifier">string</span></dt>
+<dd>A appropriate filter string for the inputs</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Cameron Allan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/sparql.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

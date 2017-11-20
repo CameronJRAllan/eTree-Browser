@@ -1,0 +1,209 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>lastfm &#8212; Meta-Data Browser for Live Music  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for lastfm</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">import</span> <span class="nn">hashlib</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="k">as</span> <span class="nn">ET</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">cache</span>
+
+<div class="viewcode-block" id="lastfmAPI"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI">[docs]</a><span class="k">class</span> <span class="nc">lastfmAPI</span><span class="p">():</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">apiKey</span><span class="p">,</span> <span class="n">sharedSecret</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">apiKey</span> <span class="o">=</span> <span class="n">apiKey</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sharedSecret</span> <span class="o">=</span> <span class="n">sharedSecret</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sessionKey</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;last_fm_sessionkey&#39;</span><span class="p">)</span>
+    <span class="c1"># apiKey = &#39;c957283a3dc3401e54b309ee2f18645b&#39;</span>
+    <span class="c1"># sharedSecret = &#39;f555ab4615197d1583eb2532b502c441&#39;</span>
+    <span class="c1"># sessionKey = &#39;0KZYiiBtaC_JVVlqQ_wAqbFtbIacAJCC&#39;</span>
+
+<div class="viewcode-block" id="lastfmAPI.update_now_playing"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.update_now_playing">[docs]</a>  <span class="k">def</span> <span class="nf">update_now_playing</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">artist</span><span class="p">,</span> <span class="n">track</span><span class="p">):</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;api_key&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">apiKey</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;artist&#39;</span><span class="p">,</span> <span class="n">artist</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;method&#39;</span><span class="p">,</span> <span class="s1">&#39;track.updateNowPlaying&#39;</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;sk&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sessionKey</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;timestamp&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="mi">30</span><span class="p">)])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;track&#39;</span><span class="p">,</span> <span class="n">track</span><span class="p">])</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_api_request</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sharedSecret</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="mi">200</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="nb">str</span><span class="p">((</span><span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.hasSession"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.hasSession">[docs]</a>  <span class="k">def</span> <span class="nf">hasSession</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">sessionKey</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.setSessionKey"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.setSessionKey">[docs]</a>  <span class="k">def</span> <span class="nf">setSessionKey</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sessionKey</span> <span class="o">=</span> <span class="n">key</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.getAPIKey"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.getAPIKey">[docs]</a>  <span class="k">def</span> <span class="nf">getAPIKey</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">apiKey</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.request_auth_token"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.request_auth_token">[docs]</a>  <span class="k">def</span> <span class="nf">request_auth_token</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;api_key&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">apiKey</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;format&#39;</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;method&#39;</span><span class="p">,</span> <span class="s1">&#39;auth.getToken&#39;</span><span class="p">])</span>
+
+    <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_api_request</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sharedSecret</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Status code: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+      <span class="n">result</span> <span class="o">=</span> <span class="n">r</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">token</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;token&#39;</span><span class="p">]</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="nb">str</span><span class="p">((</span><span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)))</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.get_venue_info"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.get_venue_info">[docs]</a>  <span class="k">def</span> <span class="nf">get_venue_info</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">venue</span><span class="p">):</span>
+    <span class="k">return</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.request_session_key"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.request_session_key">[docs]</a>  <span class="k">def</span> <span class="nf">request_session_key</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="n">parameters</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;api_key&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">apiKey</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;method&#39;</span><span class="p">,</span> <span class="s1">&#39;auth.getSession&#39;</span><span class="p">])</span>
+    <span class="n">parameters</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="s1">&#39;token&#39;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">token</span><span class="p">])</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_api_request</span><span class="p">(</span><span class="n">parameters</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">sharedSecret</span><span class="p">)</span>
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+      <span class="n">root</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">text</span><span class="p">))</span>
+      <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">root</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">child</span><span class="p">:</span>
+          <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">sub</span><span class="o">.</span><span class="n">tag</span><span class="p">))</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">sessionKey</span> <span class="o">=</span> <span class="n">sub</span><span class="o">.</span><span class="n">text</span>
+            <span class="n">cache</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">sessionKey</span><span class="p">,</span> <span class="s1">&#39;last_fm_sessionkey&#39;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Error: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">text</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.get_similar_artists"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.get_similar_artists">[docs]</a>  <span class="k">def</span> <span class="nf">get_similar_artists</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">artistName</span><span class="p">):</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&amp;autocorrect=1&amp;artist= &quot;&quot;&quot;</span> <span class="o">+</span> <span class="n">artistName</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>\
+          <span class="o">+</span> \
+          <span class="s1">&#39;&amp;api_key=&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">apiKey</span> <span class="o">+</span> <span class="s1">&#39;&amp;format=json&#39;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+      <span class="n">r_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+      <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">artist</span> <span class="ow">in</span> <span class="n">r_json</span><span class="p">[</span><span class="s1">&#39;similarartists&#39;</span><span class="p">][</span><span class="s1">&#39;artist&#39;</span><span class="p">]:</span>
+        <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">artist</span><span class="p">[</span><span class="s1">&#39;name&#39;</span><span class="p">])</span>
+      <span class="k">return</span> <span class="n">results</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Error: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">text</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.get_tags_for_artist"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.get_tags_for_artist">[docs]</a>  <span class="k">def</span> <span class="nf">get_tags_for_artist</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">artistName</span><span class="p">):</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&amp;autocorrect=1&amp;artist= &quot;&quot;&quot;</span> <span class="o">+</span> <span class="n">artistName</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> \
+          <span class="o">+</span> \
+          <span class="s1">&#39;&amp;api_key=&#39;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">apiKey</span> <span class="o">+</span> <span class="s1">&#39;&amp;format=json&#39;</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">r</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
+      <span class="n">r_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+      <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+      <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">r_json</span><span class="p">[</span><span class="s1">&#39;artist&#39;</span><span class="p">][</span><span class="s1">&#39;tags&#39;</span><span class="p">]:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">r_json</span><span class="p">[</span><span class="s1">&#39;artist&#39;</span><span class="p">][</span><span class="s1">&#39;tags&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">r_json</span><span class="p">[</span><span class="s1">&#39;artist&#39;</span><span class="p">][</span><span class="s1">&#39;tags&#39;</span><span class="p">][</span><span class="n">key</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+      <span class="k">return</span> <span class="n">results</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s1">&#39;Error: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">status_code</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;</span><span class="se">\n</span><span class="s1">&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">text</span><span class="p">))</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.set_session_key"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.set_session_key">[docs]</a>  <span class="k">def</span> <span class="nf">set_session_key</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">newKey</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sessionKey</span> <span class="o">=</span> <span class="n">newKey</span></div>
+
+<div class="viewcode-block" id="lastfmAPI.generate_api_request"><a class="viewcode-back" href="../test_build/lastfm.html#lastfm.lastfmAPI.generate_api_request">[docs]</a>  <span class="k">def</span> <span class="nf">generate_api_request</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameters</span><span class="p">,</span> <span class="n">secret</span><span class="p">):</span>
+    <span class="n">key_value_string</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+      <span class="n">key_value_string</span> <span class="o">=</span> <span class="n">key_value_string</span> <span class="o">+</span> <span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="s1">&#39;http://ws.audioscrobbler.com/2.0/?&#39;</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">parameters</span><span class="p">:</span>
+      <span class="n">url</span> <span class="o">=</span> <span class="n">url</span> <span class="o">+</span> <span class="n">item</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;=&#39;</span> <span class="o">+</span> <span class="n">item</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="s1">&#39;&amp;&#39;</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">url</span> <span class="o">+</span> <span class="s1">&#39;api_sig=&#39;</span> <span class="o">+</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">md5</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key_value_string</span> <span class="o">+</span> <span class="n">secret</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s1">&#39;utf-8&#39;</span><span class="p">))</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">url</span></div></div>
+
+
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Cameron Allan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
