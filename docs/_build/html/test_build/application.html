@@ -1,0 +1,729 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>application module &#8212; Meta-Data Browser for Live Music  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-application">
+<span id="application-module"></span><h1>application module<a class="headerlink" href="#module-application" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="application.BrowseListHandler">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">BrowseListHandler</code><span class="sig-paren">(</span><em>app</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseListHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseListHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="application.BrowseListHandler.browse_link_clicked">
+<code class="descname">browse_link_clicked</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseListHandler.browse_link_clicked"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseListHandler.browse_link_clicked" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds items relative to the clicked browse item, to the tree view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>item <span class="classifier-delimiter">:</span> <span class="classifier">QStandardItem</span></dt>
+<dd>The item clicked</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseListHandler.change_type">
+<code class="descname">change_type</code><span class="sig-paren">(</span><em>type</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseListHandler.change_type"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseListHandler.change_type" title="Permalink to this definition">¶</a></dt>
+<dd><p>Changes the model shown to the user for browsing the meta-data.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>type <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The index corresponding to the new browse model</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseListHandler.change_type_order">
+<code class="descname">change_type_order</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseListHandler.change_type_order"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseListHandler.change_type_order" title="Permalink to this definition">¶</a></dt>
+<dd><p>Changes the order of the browse model.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>index <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The index corresponding to the new type order</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseListHandler.generate_browse_models">
+<code class="descname">generate_browse_models</code><span class="sig-paren">(</span><em>list</em>, <em>model</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseListHandler.generate_browse_models"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseListHandler.generate_browse_models" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes an input list and an empty model, and fills said model.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>list <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>The input list of items for the model</dd>
+<dt>model <span class="classifier-delimiter">:</span> <span class="classifier">QStandardItemModel</span></dt>
+<dd>An empty model for QStandardItems</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseListHandler.generate_location_model">
+<code class="descname">generate_location_model</code><span class="sig-paren">(</span><em>dict</em>, <em>model</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseListHandler.generate_location_model"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseListHandler.generate_location_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes an input dict of locations and an empty model, and fills said model.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>dict <span class="classifier-delimiter">:</span> <span class="classifier">dictionary</span></dt>
+<dd>The input dictionary of locations for the model</dd>
+<dt>model <span class="classifier-delimiter">:</span> <span class="classifier">QStandardItemModel</span></dt>
+<dd>An empty model for QStandardItems</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseListHandler.quick_filter_update">
+<code class="descname">quick_filter_update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseListHandler.quick_filter_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseListHandler.quick_filter_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides filter functionality for the browsing models.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.BrowseTreeViewHandler">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">BrowseTreeViewHandler</code><span class="sig-paren">(</span><em>main</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseTreeViewHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseTreeViewHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="application.BrowseTreeViewHandler.add_tracks_tree">
+<code class="descname">add_tracks_tree</code><span class="sig-paren">(</span><em>extension_type</em>, <em>tracklist</em>, <em>index</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseTreeViewHandler.add_tracks_tree"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseTreeViewHandler.add_tracks_tree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds a tracklist to the tree view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>extension_type <span class="classifier-delimiter">:</span> <span class="classifier">str</span></dt>
+<dd>The requested format for the audio association.</dd>
+<dt>tracklist <span class="classifier-delimiter">:</span> <span class="classifier">dict</span></dt>
+<dd>The tracklist for the performance.</dd>
+<dt>index <span class="classifier-delimiter">:</span> <span class="classifier">QModelIndex</span></dt>
+<dd>The index in the treeview (i.e. the performance), clicked.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseTreeViewHandler.expand_tree_item">
+<code class="descname">expand_tree_item</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseTreeViewHandler.expand_tree_item"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseTreeViewHandler.expand_tree_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Expands a performance, adding its tracklist as children in the tree.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>index <span class="classifier-delimiter">:</span> <span class="classifier">QModelIndex</span></dt>
+<dd>The index in the treeview (i.e. the performance), clicked.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseTreeViewHandler.play_tree_item">
+<code class="descname">play_tree_item</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseTreeViewHandler.play_tree_item"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseTreeViewHandler.play_tree_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when an item in the browse tab treeview is double-clicked, starting audio playback</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>index <span class="classifier-delimiter">:</span> <span class="classifier">QModelIndex</span></dt>
+<dd>The row index clicked by the user.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseTreeViewHandler.tree_view_filter_update">
+<code class="descname">tree_view_filter_update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseTreeViewHandler.tree_view_filter_update"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseTreeViewHandler.tree_view_filter_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides filter functionality for the the tree view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.BrowseTreeViewHandler.update_tree_view">
+<code class="descname">update_tree_view</code><span class="sig-paren">(</span><em>itemText</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#BrowseTreeViewHandler.update_tree_view"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.BrowseTreeViewHandler.update_tree_view" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.CallHandler">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">CallHandler</code><a class="reference internal" href="../_modules/application.html#CallHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.CallHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">PyQt5.QtCore.QObject</span></code></p>
+<dl class="method">
+<dt id="application.CallHandler.generate_geoname_html">
+<code class="descname">generate_geoname_html</code><span class="sig-paren">(</span><em>id</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#CallHandler.generate_geoname_html"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.CallHandler.generate_geoname_html" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.CallHandler.mapLinkClicked">
+<code class="descname">mapLinkClicked</code><span class="sig-paren">(</span><em>link</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#CallHandler.mapLinkClicked"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.CallHandler.mapLinkClicked" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.CallHandler.map_tracklist_popup">
+<code class="descname">map_tracklist_popup</code><span class="sig-paren">(</span><em>link</em>, <em>label</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#CallHandler.map_tracklist_popup"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.CallHandler.map_tracklist_popup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.DebugDialog">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">DebugDialog</code><a class="reference internal" href="../_modules/application.html#DebugDialog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.DebugDialog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">PyQt5.QtWidgets.QTextEdit</span></code></p>
+<dl class="method">
+<dt id="application.DebugDialog.add_line">
+<code class="descname">add_line</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#DebugDialog.add_line"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.DebugDialog.add_line" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.DebugDialog.clear">
+<code class="descname">clear</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#DebugDialog.clear"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.DebugDialog.clear" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.ErrorDialog">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">ErrorDialog</code><span class="sig-paren">(</span><em>exception</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#ErrorDialog"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.ErrorDialog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">PyQt5.QtWidgets.QErrorMessage</span></code></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="application.MapHandler">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">MapHandler</code><span class="sig-paren">(</span><em>prog</em>, <em>webEngine</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#MapHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.MapHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="application.MapHandler.add_point">
+<code class="descname">add_point</code><span class="sig-paren">(</span><em>lat</em>, <em>lng</em>, <em>title</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#MapHandler.add_point"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.MapHandler.add_point" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.MapHandler.add_search_results_map">
+<code class="descname">add_search_results_map</code><span class="sig-paren">(</span><em>results</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#MapHandler.add_search_results_map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.MapHandler.add_search_results_map" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.MapHandler.end_data_processing">
+<code class="descname">end_data_processing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#MapHandler.end_data_processing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.MapHandler.end_data_processing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.MapHandler.get_on_this_day">
+<code class="descname">get_on_this_day</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#MapHandler.get_on_this_day"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.MapHandler.get_on_this_day" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.MapHandler.process_search_results">
+<code class="descname">process_search_results</code><span class="sig-paren">(</span><em>results</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#MapHandler.process_search_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.MapHandler.process_search_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.MapHandler.start_data_processing">
+<code class="descname">start_data_processing</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#MapHandler.start_data_processing"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.MapHandler.start_data_processing" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.NowPlaying">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">NowPlaying</code><span class="sig-paren">(</span><em>prog</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#NowPlaying"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.NowPlaying" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="application.NowPlaying.get_image">
+<code class="descname">get_image</code><span class="sig-paren">(</span><em>artist</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#NowPlaying.get_image"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.NowPlaying.get_image" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.NowPlaying.update_now_playing_view">
+<code class="descname">update_now_playing_view</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#NowPlaying.update_now_playing_view"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.NowPlaying.update_now_playing_view" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.NowPlaying.update_playlist_view">
+<code class="descname">update_playlist_view</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#NowPlaying.update_playlist_view"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.NowPlaying.update_playlist_view" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.SearchHandler">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">SearchHandler</code><span class="sig-paren">(</span><em>main</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="application.SearchHandler.add_custom_condition">
+<code class="descname">add_custom_condition</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.add_custom_condition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.add_custom_condition" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.add_search_tab_contents">
+<code class="descname">add_search_tab_contents</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.add_search_tab_contents"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.add_search_tab_contents" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.change_condition_or">
+<code class="descname">change_condition_or</code><span class="sig-paren">(</span><em>customConditions</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.change_condition_or"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.change_condition_or" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adjusts a search FILTER from “ALL” or “OR”.</p>
+<dl class="docutils">
+<dt>customConditions <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>A list of custom conditions returned by the class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.custom_search">
+<code class="descname">custom_search</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.custom_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.custom_search" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates search filter queries for advanced queries from the interface.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.ensure_matching_parentheses">
+<code class="descname">ensure_matching_parentheses</code><span class="sig-paren">(</span><em>customConditions</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.ensure_matching_parentheses"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.ensure_matching_parentheses" title="Permalink to this definition">¶</a></dt>
+<dd><p>Performs validation on SPARQL filter queries to ensure that our query is valid.</p>
+<dl class="docutils">
+<dt>customConditions <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>A list of custom conditions returned by the class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.generate_advanced_search">
+<code class="descname">generate_advanced_search</code><span class="sig-paren">(</span><em>field</em>, <em>operator</em>, <em>condition</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.generate_advanced_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.generate_advanced_search" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.generate_condition_combo">
+<code class="descname">generate_condition_combo</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.generate_condition_combo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.generate_condition_combo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.generate_field_combo">
+<code class="descname">generate_field_combo</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.generate_field_combo"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.generate_field_combo" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.generate_mapped_locations">
+<code class="descname">generate_mapped_locations</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.generate_mapped_locations"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.generate_mapped_locations" title="Permalink to this definition">¶</a></dt>
+<dd><p>A user may request all performances within a specified radius of a given location.</p>
+<p>We calculate the desired locations using point-to-point distance calculations, relative
+to the location map keys.</p>
+<dl class="docutils">
+<dt>countries <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>A list of performance countries.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.get_mapped_countries">
+<code class="descname">get_mapped_countries</code><span class="sig-paren">(</span><em>countries</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.get_mapped_countries"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.get_mapped_countries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves locations in a requested country.</p>
+<dl class="docutils">
+<dt>countries <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>A list of performance countries.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.perform_search">
+<code class="descname">perform_search</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.perform_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.perform_search" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.remove_custom_condition">
+<code class="descname">remove_custom_condition</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.remove_custom_condition"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.remove_custom_condition" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.SearchHandler.update_auto_complete">
+<code class="descname">update_auto_complete</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#SearchHandler.update_auto_complete"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.SearchHandler.update_auto_complete" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates auto-complete instances for advanced search conditions.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.TableHandler">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">TableHandler</code><span class="sig-paren">(</span><em>prog</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="application.TableHandler.add_table_item">
+<code class="descname">add_table_item</code><span class="sig-paren">(</span><em>i</em>, <em>c</em>, <em>itemText</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.add_table_item"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.add_table_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds an item to the table view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>i <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>Row index.</dd>
+<dt>c <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>Row index.</dd>
+<dt>itemText <span class="classifier-delimiter">:</span> <span class="classifier">str</span></dt>
+<dd>Table item text.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.change_focus">
+<code class="descname">change_focus</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.change_focus"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.change_focus" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.check_is_number">
+<code class="descname">check_is_number</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.check_is_number"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.check_is_number" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.fill_table">
+<code class="descname">fill_table</code><span class="sig-paren">(</span><em>results</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.fill_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.fill_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Starts a thread to fill the table with the data returned from a search.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>results <span class="classifier-delimiter">:</span> <span class="classifier">dict</span></dt>
+<dd>Dictionary of results returned from the SPARQL query.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.generate_results_table">
+<code class="descname">generate_results_table</code><span class="sig-paren">(</span><em>results</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.generate_results_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.generate_results_table" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.generate_table_end">
+<code class="descname">generate_table_end</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.generate_table_end"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.generate_table_end" title="Permalink to this definition">¶</a></dt>
+<dd><p>Perform post-processing on table after all the data has been entered.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.generate_table_start">
+<code class="descname">generate_table_start</code><span class="sig-paren">(</span><em>c</em>, <em>col</em>, <em>columnNames</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.generate_table_start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.generate_table_start" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds an item to the table view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>c <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>Number of rows for the table.</dd>
+<dt>col <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>Number of columns for the table.</dd>
+<dt>columnNames <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>List of column names.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.get_label_for_URI">
+<code class="descname">get_label_for_URI</code><span class="sig-paren">(</span><em>URI</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.get_label_for_URI"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.get_label_for_URI" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.get_table">
+<code class="descname">get_table</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.get_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.get_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the table element instance.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.get_table_container">
+<code class="descname">get_table_container</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.get_table_container"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.get_table_container" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the table element instance widget.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.on_table_scroll">
+<code class="descname">on_table_scroll</code><span class="sig-paren">(</span><em>value</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.on_table_scroll"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.on_table_scroll" title="Permalink to this definition">¶</a></dt>
+<dd><p>Starts a new thread for replacing URIs with location labels.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>value <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The desired row index.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.retrieve_labels_scroll">
+<code class="descname">retrieve_labels_scroll</code><span class="sig-paren">(</span><em>startRow</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.retrieve_labels_scroll"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.retrieve_labels_scroll" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves location labels to replace URIs, upon scrolling.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>value <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The desired row index.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.search_table_clicked">
+<code class="descname">search_table_clicked</code><span class="sig-paren">(</span><em>title</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.search_table_clicked"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.search_table_clicked" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.set_location_width">
+<code class="descname">set_location_width</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.set_location_width"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.set_location_width" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TableHandler.update_table_item">
+<code class="descname">update_table_item</code><span class="sig-paren">(</span><em>row</em>, <em>col</em>, <em>text</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TableHandler.update_table_item"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TableHandler.update_table_item" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates a particular table item.</p>
+<p>This function is mainly used for replacing URIs with human-readable labels.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>row <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The desired row index.</dd>
+<dt>col <span class="classifier-delimiter">:</span> <span class="classifier">int</span></dt>
+<dd>The desired column index.</dd>
+<dt>text <span class="classifier-delimiter">:</span> <span class="classifier">str</span></dt>
+<dd>The text to update the item with.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.TimelineHandler">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">TimelineHandler</code><span class="sig-paren">(</span><em>webEngine</em>, <em>main</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TimelineHandler"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TimelineHandler" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="application.TimelineHandler.add_points">
+<code class="descname">add_points</code><span class="sig-paren">(</span><em>results</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TimelineHandler.add_points"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TimelineHandler.add_points" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.TreePropertiesView">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">TreePropertiesView</code><span class="sig-paren">(</span><em>app</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TreePropertiesView"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TreePropertiesView" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">PyQt5.QtWidgets.QTreeView</span></code></p>
+<dl class="method">
+<dt id="application.TreePropertiesView.fill_properties_tree_view">
+<code class="descname">fill_properties_tree_view</code><span class="sig-paren">(</span><em>model</em>, <em>properties</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TreePropertiesView.fill_properties_tree_view"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TreePropertiesView.fill_properties_tree_view" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TreePropertiesView.get_translation_uri">
+<code class="descname">get_translation_uri</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TreePropertiesView.get_translation_uri"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TreePropertiesView.get_translation_uri" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TreePropertiesView.group_properties">
+<code class="descname">group_properties</code><span class="sig-paren">(</span><em>properties</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TreePropertiesView.group_properties"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TreePropertiesView.group_properties" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.TreePropertiesView.retrieve_properties_subwindow">
+<code class="descname">retrieve_properties_subwindow</code><span class="sig-paren">(</span><em>index</em>, <em>model</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TreePropertiesView.retrieve_properties_subwindow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TreePropertiesView.retrieve_properties_subwindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides a properties view for a given performance.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+<p>index : int</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.TreePropertiesView.retrieve_release_info">
+<code class="descname">retrieve_release_info</code><span class="sig-paren">(</span><em>release</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#TreePropertiesView.retrieve_release_info"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.TreePropertiesView.retrieve_release_info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="application.mainWindow">
+<em class="property">class </em><code class="descclassname">application.</code><code class="descname">mainWindow</code><span class="sig-paren">(</span><em>dialog</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="UI.html#UI.UI" title="UI.UI"><code class="xref py py-class docutils literal"><span class="pre">UI.UI</span></code></a></p>
+<dl class="method">
+<dt id="application.mainWindow.append_history_table">
+<code class="descname">append_history_table</code><span class="sig-paren">(</span><em>track_name</em>, <em>artist</em>, <em>recording_label</em>, <em>url</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.append_history_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.append_history_table" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.auto_comp">
+<code class="descname">auto_comp</code><span class="sig-paren">(</span><em>inputList</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.auto_comp"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.auto_comp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates and returns an auto-completer with the input list.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>inputList <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>The input list providing the model for the auto-completer.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.check_lastfm_status">
+<code class="descname">check_lastfm_status</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.check_lastfm_status"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.check_lastfm_status" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks whether we have an existing Last.FM session, and if not,
+initiates authentication with the API.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.clickable">
+<code class="descname">clickable</code><span class="sig-paren">(</span><em>associatedWidget</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.clickable"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.clickable" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.debug_window_state_changed">
+<code class="descname">debug_window_state_changed</code><span class="sig-paren">(</span><em>state</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.debug_window_state_changed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.debug_window_state_changed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.initialize_history_table">
+<code class="descname">initialize_history_table</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.initialize_history_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.initialize_history_table" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.initialize_web_channel">
+<code class="descname">initialize_web_channel</code><span class="sig-paren">(</span><em>widget</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.initialize_web_channel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.initialize_web_channel" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.nowplaying_playlist_clicked">
+<code class="descname">nowplaying_playlist_clicked</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.nowplaying_playlist_clicked"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.nowplaying_playlist_clicked" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.open_tree_menu">
+<code class="descname">open_tree_menu</code><span class="sig-paren">(</span><em>pos</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.open_tree_menu"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.open_tree_menu" title="Permalink to this definition">¶</a></dt>
+<dd><p>Called when the user requests a context menu from the tree view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>pos <span class="classifier-delimiter">:</span> <span class="classifier">QStandardItem</span></dt>
+<dd>The item the user right clicked on</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.playlist_clicked">
+<code class="descname">playlist_clicked</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.playlist_clicked"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.playlist_clicked" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.preferred_format_changed">
+<code class="descname">preferred_format_changed</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.preferred_format_changed"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.preferred_format_changed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.scrobble_track_lastfm">
+<code class="descname">scrobble_track_lastfm</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.scrobble_track_lastfm"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.scrobble_track_lastfm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.set_tooltips">
+<code class="descname">set_tooltips</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.set_tooltips"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.set_tooltips" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets up help tooltips which appear when the user hovers over a particular widget.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="application.mainWindow.tree_browse_menu_click">
+<code class="descname">tree_browse_menu_click</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/application.html#mainWindow.tree_browse_menu_click"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#application.mainWindow.tree_browse_menu_click" title="Permalink to this definition">¶</a></dt>
+<dd><p>Processes use of the menu in the tree view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+<p>index : int</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Cameron Allan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="../_sources/test_build/application.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

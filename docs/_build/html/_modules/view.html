@@ -1,0 +1,537 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>view &#8212; Meta-Data Browser for Live Music  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for view</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">PyQt5</span> <span class="k">import</span> <span class="n">QtWidgets</span><span class="p">,</span> <span class="n">QtCore</span><span class="p">,</span> <span class="n">QtGui</span>
+<span class="kn">from</span> <span class="nn">PyQt5.QtWebEngineWidgets</span> <span class="k">import</span> <span class="n">QWebEngineView</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">application</span>
+<span class="kn">import</span> <span class="nn">multithreading</span>
+<span class="kn">import</span> <span class="nn">calma</span>
+<span class="kn">import</span> <span class="nn">graph</span>
+
+<div class="viewcode-block" id="View"><a class="viewcode-back" href="../view.html#view.View">[docs]</a><span class="k">class</span> <span class="nc">View</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  This class defines a data view of a SPARQL query search.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">,</span> <span class="n">search</span><span class="p">,</span> <span class="n">views</span><span class="p">,</span> <span class="n">results</span><span class="p">,</span> <span class="n">hasCalma</span><span class="p">,</span> <span class="n">searchLayout</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create an instance of the View class.</span>
+
+<span class="sd">    The view class defines a series of layout, split into a tabbed list of buttons, and</span>
+<span class="sd">    a series of data views (a combination of textual, chronological and geographical).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    app : instance</span>
+<span class="sd">        Reference to the main application module.</span>
+<span class="sd">    search : instance</span>
+<span class="sd">        Reference to the searchHandler instance.</span>
+<span class="sd">    views : str[]</span>
+<span class="sd">        A list of views requested.</span>
+<span class="sd">    results : float</span>
+<span class="sd">        The results of the SPARQL query.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">search</span> <span class="o">=</span> <span class="n">search</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">calma</span> <span class="o">=</span> <span class="n">calma</span><span class="o">.</span><span class="n">Calma</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">hasCalma</span> <span class="o">=</span> <span class="n">hasCalma</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">searchLayout</span> <span class="o">=</span> <span class="n">searchLayout</span>
+    <span class="c1"># If no results / error occured, log and return</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+      <span class="n">errorDialog</span> <span class="o">=</span> <span class="n">application</span><span class="o">.</span><span class="n">ErrorDialog</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+      <span class="k">return</span>
+
+    <span class="c1"># Generate components from user check boxes</span>
+    <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">views</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s1">&#39;map&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_map</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+      <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s1">&#39;timeline&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_plot_view</span><span class="p">()</span> <span class="c1"># generate_timeline(results)</span>
+      <span class="k">if</span> <span class="n">v</span> <span class="o">==</span> <span class="s1">&#39;table&#39;</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_table</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+
+    <span class="c1"># Generate dialog for user</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">create_layouts</span><span class="p">(</span><span class="n">views</span><span class="p">)</span>
+  <span class="c1">#</span>
+  <span class="c1"># def set_left_sidebar(self, layout):</span>
+  <span class="c1">#   self.infoWidget.setLayout(self.layout())</span>
+  <span class="c1">#   self.infoWidget.setLayout(layout)</span>
+
+<div class="viewcode-block" id="View.get_layout"><a class="viewcode-back" href="../view.html#view.View.get_layout">[docs]</a>  <span class="k">def</span> <span class="nf">get_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dockedDialog</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="View.generate_map"><a class="viewcode-back" href="../view.html#view.View.generate_map">[docs]</a>  <span class="k">def</span> <span class="nf">generate_map</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generates a map view for the SPARQL query results.</span>
+
+<span class="sd">    The map dialog utilizes a QWebEngineView, webkit-based, to display an OpenStreetMap</span>
+<span class="sd">    tiles layer with the data placed on top.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    results : {}</span>
+<span class="sd">        The results of the SPARQL query.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Create web view to execute JavaScript within</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span> <span class="o">=</span> <span class="n">QWebEngineView</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">searchMapHandler</span> <span class="o">=</span> <span class="n">application</span><span class="o">.</span><span class="n">MapHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span><span class="o">.</span><span class="n">loadFinished</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="k">lambda</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">searchMapHandler</span><span class="o">.</span><span class="n">add_search_results_map</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mapsPath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;/maps/map.htm&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span><span class="o">.</span><span class="n">setUrl</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">QUrl</span><span class="p">(</span><span class="s2">&quot;file://&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">mapsPath</span><span class="p">))</span>
+
+    <span class="c1"># Initialize web channel for communication between Python + JS</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">initialize_web_channel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="View.generate_plot_view"><a class="viewcode-back" href="../view.html#view.View.generate_plot_view">[docs]</a>  <span class="k">def</span> <span class="nf">generate_plot_view</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Starts a new plot of CALMA data.</span>
+
+<span class="sd">    This function is typically called after CALMA data has been retrieved</span>
+<span class="sd">    and a track has been clicked upon.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">calmaGraphView</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">CalmaPlot</span><span class="p">(</span><span class="mi">600</span><span class="p">,</span><span class="mi">600</span><span class="p">,</span><span class="mi">100</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hasCalma</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="View.generate_table"><a class="viewcode-back" href="../view.html#view.View.generate_table">[docs]</a>  <span class="k">def</span> <span class="nf">generate_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">results</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Begins the process of generating a table with the search results.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    results : dict</span>
+<span class="sd">        Dictionary of search results.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Create table of results</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span> <span class="o">=</span> <span class="n">application</span><span class="o">.</span><span class="n">TableHandler</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">fill_table</span><span class="p">(</span><span class="n">results</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="View.create_layouts"><a class="viewcode-back" href="../view.html#view.View.create_layouts">[docs]</a>  <span class="k">def</span> <span class="nf">create_layouts</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">views</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates the layouts for the data view (the overall dialog).</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    views : str[]</span>
+<span class="sd">        List of requested views.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Info window (left side)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">views</span> <span class="o">=</span> <span class="n">views</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesSearchWindow</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_search_properties_window</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWidget</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QStackedLayout</span><span class="p">()</span> <span class="c1"># QtWidgets.QBoxLayout(2)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">searchLayout</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesSearchWindow</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWidget</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span><span class="p">)</span>
+
+    <span class="c1"># Docked layout (right side)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">viewsWidget</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QBoxLayout</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="c1"># Create a widget for each requested view</span>
+    <span class="k">if</span> <span class="s1">&#39;table&#39;</span> <span class="ow">in</span> <span class="n">views</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table_container</span><span class="p">())</span>
+    <span class="k">if</span> <span class="s1">&#39;map&#39;</span> <span class="ow">in</span> <span class="n">views</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s1">&#39;timeline&#39;</span> <span class="ow">in</span> <span class="n">views</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calmaGraphView</span><span class="p">)</span> <span class="c1"># self.timelineWebView)</span>
+
+    <span class="c1"># Set initial spanning between the view components</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">views</span><span class="p">)</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">6</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">views</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">viewsWidget</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="p">)</span>
+
+    <span class="c1"># Overall top level layout</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QHBoxLayout</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWidget</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">viewsWidget</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedDialog</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedDialog</span><span class="o">.</span><span class="n">setWindowTitle</span><span class="p">(</span><span class="s2">&quot;Data View&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedDialog</span><span class="o">.</span><span class="n">setMinimumHeight</span><span class="p">(</span><span class="mi">800</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedDialog</span><span class="o">.</span><span class="n">setMinimumWidth</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedDialog</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">8</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span><span class="o">.</span><span class="n">setContentsMargins</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dockedLayout</span></div>
+<div class="viewcode-block" id="View.create_search_properties_window"><a class="viewcode-back" href="../view.html#view.View.create_search_properties_window">[docs]</a>  <span class="k">def</span> <span class="nf">create_search_properties_window</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates a properties window for a data view.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Create layouts for each tab</span>
+    <span class="n">layoutTabLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QGridLayout</span><span class="p">()</span>
+    <span class="n">searchTabLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QGridLayout</span><span class="p">()</span>
+    <span class="n">graphTabLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QGridLayout</span><span class="p">()</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Add sliders for adjusting the layout</span>
+    <span class="n">layoutTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLabel</span><span class="p">(</span><span class="s1">&#39;Table Span&#39;</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSlider</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">Horizontal</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setMaximum</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setSingleStep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">layoutTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">layoutTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLabel</span><span class="p">(</span><span class="s1">&#39;Map Span&#39;</span><span class="p">),</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSlider</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">Horizontal</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setMaximum</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setSingleStep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">layoutTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">],</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">layoutTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLabel</span><span class="p">(</span><span class="s1">&#39;Timeline Span&#39;</span><span class="p">),</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QSlider</span><span class="p">(</span><span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">Horizontal</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setMaximum</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">setSingleStep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">layoutTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">],</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">valueChanged</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">change_proportions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">valueChanged</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">change_proportions</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">valueChanged</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">change_proportions</span><span class="p">)</span>
+
+    <span class="c1"># Add search button</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;searchButton&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QPushButton</span><span class="p">(</span><span class="s1">&#39;Search&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;searchBox&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLineEdit</span><span class="p">()</span>
+    <span class="n">searchTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;searchBox&#39;</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+    <span class="n">searchTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;searchButton&#39;</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;searchButton&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">search_table</span><span class="p">)</span>
+
+    <span class="c1"># Add tracklist label for properties sub-window</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tracklistLabel&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QLabel</span><span class="p">(</span><span class="s2">&quot;Tracklist:&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Create individual tabs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTabWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">layoutTab</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTabWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">searchTab</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTabWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTab</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTabWidget</span><span class="p">()</span>
+
+    <span class="c1"># Add tracklist tab components</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistView</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QListWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTab</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistView</span><span class="o">.</span><span class="n">clicked</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">graph_calma</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QVBoxLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTab</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tracklistLabel&#39;</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tracklistView</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistWidget</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistWidget</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tracklistLayout</span><span class="p">)</span>
+
+    <span class="c1"># Create properties tab layout</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTreeView</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTreeView</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTab</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTabLayout</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QVBoxLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTab</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTreeView</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTabLayout</span><span class="o">.</span><span class="n">addWidget</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tracklistWidget</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTab</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTabLayout</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTreeView</span><span class="o">.</span><span class="n">header</span><span class="p">()</span><span class="o">.</span><span class="n">hide</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">graphTab</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTabWidget</span><span class="p">()</span>
+
+    <span class="c1"># Set tab layouts</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">layoutTab</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="n">layoutTabLayout</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">searchTab</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="n">searchTabLayout</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">graphTab</span><span class="o">.</span><span class="n">setLayout</span><span class="p">(</span><span class="n">graphTabLayout</span><span class="p">)</span>
+
+    <span class="c1"># Finally, add tabs to the tab widget</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">addTab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTab</span><span class="p">,</span> <span class="s1">&#39;Properties&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">addTab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">searchTab</span><span class="p">,</span> <span class="s1">&#39;Filter&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">addTab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layoutTab</span><span class="p">,</span> <span class="s1">&#39;Layout&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">addTab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">graphTab</span><span class="p">,</span> <span class="s1">&#39;Graph&#39;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">goBackToSearchTab</span> <span class="o">=</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTabWidget</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">addTab</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">goBackToSearchTab</span><span class="p">,</span> <span class="s1">&#39;Search --&gt;&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">tabBar</span><span class="p">()</span><span class="o">.</span><span class="n">setTabTextColor</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">red</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">currentChanged</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">change_to_search</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">searchVisible</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># Add tooltips</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">add_tooltips</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span> <span class="c1"># self.tabWidget</span></div>
+
+<div class="viewcode-block" id="View.change_to_search"><a class="viewcode-back" href="../view.html#view.View.change_to_search">[docs]</a>  <span class="k">def</span> <span class="nf">change_to_search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Called search func: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
+    <span class="k">if</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span><span class="o">.</span><span class="n">setCurrentIndex</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">tabWidget</span><span class="o">.</span><span class="n">setCurrentIndex</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="View.change_to_results"><a class="viewcode-back" href="../view.html#view.View.change_to_results">[docs]</a>  <span class="k">def</span> <span class="nf">change_to_results</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Called results func: &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">index</span> <span class="o">==</span> <span class="mi">4</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span><span class="o">.</span><span class="n">setCurrentIndex</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">propertiesSearchWindow</span><span class="o">.</span><span class="n">setCurrentIndex</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span></div>
+<div class="viewcode-block" id="View.toggleSearchWindow"><a class="viewcode-back" href="../view.html#view.View.toggleSearchWindow">[docs]</a>  <span class="k">def</span> <span class="nf">toggleSearchWindow</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">searchVisible</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span><span class="o">.</span><span class="n">setCurrentIndex</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">infoLayout</span><span class="o">.</span><span class="n">setCurrentIndex</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">searchVisible</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">searchVisible</span></div>
+
+<div class="viewcode-block" id="View.graph_calma"><a class="viewcode-back" href="../view.html#view.View.graph_calma">[docs]</a>  <span class="k">def</span> <span class="nf">graph_calma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">item</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieves CALMA data and then requests a plot of said data.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    item : QModelIndex</span>
+<span class="sd">        Index in the tracklist clicked.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># If no calma instance return</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="c1"># Retrieve CALMA URL for this track in the performance</span>
+      <span class="n">calmaURL</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tracklistCalma</span><span class="p">[</span><span class="n">item</span><span class="o">.</span><span class="n">data</span><span class="p">()]</span>
+
+      <span class="c1"># Retrieve and set CALMA data</span>
+      <span class="nb">print</span><span class="p">(</span><span class="n">calmaURL</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">calma</span><span class="o">.</span><span class="n">set_new_track_calma</span><span class="p">(</span><span class="n">calmaURL</span><span class="p">)</span>
+
+      <span class="c1"># Create a plot of the CALMA data</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">calmaGraphView</span><span class="o">.</span><span class="n">plot_calma_data</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">calma</span><span class="o">.</span><span class="n">loudnessValues</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">calma</span><span class="o">.</span><span class="n">keyInfo</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">calma</span><span class="o">.</span><span class="n">duration</span><span class="p">)</span>
+
+      <span class="c1"># Update the widget geometry, showing the plot to the user</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">calmaGraphView</span><span class="o">.</span><span class="n">updateGeometry</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+      <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Not found&#39;</span><span class="p">)</span>
+      <span class="k">return</span></div>
+
+<div class="viewcode-block" id="View.update_properties_tab"><a class="viewcode-back" href="../view.html#view.View.update_properties_tab">[docs]</a>  <span class="k">def</span> <span class="nf">update_properties_tab</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTabModel</span> <span class="o">=</span> <span class="n">QtGui</span><span class="o">.</span><span class="n">QStandardItemModel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTreeView</span><span class="p">)</span>
+    <span class="n">properties</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">get_release_properties</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_label_current_row</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">properties</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">browseTreeProperties</span><span class="o">.</span><span class="n">fill_properties_tree_view</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTabModel</span><span class="p">,</span> <span class="n">properties</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">propertiesTreeView</span><span class="o">.</span><span class="n">setModel</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">propertiesTabModel</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="View.get_label_current_row"><a class="viewcode-back" href="../view.html#view.View.get_label_current_row">[docs]</a>  <span class="k">def</span> <span class="nf">get_label_current_row</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">columnCount</span><span class="p">()</span><span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+      <span class="k">try</span><span class="p">:</span>
+        <span class="n">currentRowLabel</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">currentRow</span><span class="p">(),</span> <span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="s1">&#39;live at&#39;</span> <span class="ow">in</span> <span class="n">currentRowLabel</span><span class="p">:</span>
+          <span class="nb">print</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">currentRow</span><span class="p">(),</span> <span class="n">c</span><span class="p">))</span>
+          <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">currentRow</span><span class="p">(),</span> <span class="n">c</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">()</span>
+      <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">return</span></div>
+
+<div class="viewcode-block" id="View.change_proportions"><a class="viewcode-back" href="../view.html#view.View.change_proportions">[docs]</a>  <span class="k">def</span> <span class="nf">change_proportions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adjusts the proportions of dialog given to each individual view.</span>
+
+<span class="sd">    This function is called whenever the user moves the sliders in the &quot;Layout&quot; tab, the</span>
+<span class="sd">    sliders dictate the ratio between the view, e.g. 10:10:10 would give each an equal amount</span>
+<span class="sd">    of space.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Table slider</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;tableSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()))</span>
+    <span class="c1"># Timeline slider</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;timelineSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()))</span>
+    <span class="c1"># Map slider</span>
+    <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">):</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">viewsLayout</span><span class="o">.</span><span class="n">setStretch</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;mapSpan&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">value</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="View.move_focus"><a class="viewcode-back" href="../view.html#view.View.move_focus">[docs]</a>  <span class="k">def</span> <span class="nf">move_focus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="c1"># If click was from map or timeline</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+      <span class="c1"># Change focus on table</span>
+      <span class="k">if</span> <span class="s1">&#39;table&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">views</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">change_focus</span><span class="p">(</span><span class="n">index</span><span class="p">)</span>
+      <span class="c1"># if &#39;timeline&#39; in self.views:</span>
+      <span class="c1">#   self.timelineWebView.page().runJavaScript(&quot;&quot;&quot;highlightMarker(`{0}`)&quot;&quot;&quot;.format(index))</span>
+      <span class="k">if</span> <span class="s1">&#39;map&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">views</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span><span class="o">.</span><span class="n">page</span><span class="p">()</span><span class="o">.</span><span class="n">runJavaScript</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;changeMarkerFocus(`</span><span class="si">{0}</span><span class="s2">`)&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span><span class="p">))</span>
+
+    <span class="c1"># If click was from table</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">QtWidgets</span><span class="o">.</span><span class="n">QTableWidgetItem</span><span class="p">):</span>
+      <span class="k">if</span> <span class="s1">&#39;map&#39;</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">views</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mapSearchDialog</span><span class="o">.</span><span class="n">page</span><span class="p">()</span><span class="o">.</span><span class="n">runJavaScript</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;changeMarkerFocus(`</span><span class="si">{0}</span><span class="s2">`)&quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">index</span><span class="o">.</span><span class="n">row</span><span class="p">()))</span>
+      <span class="c1"># if &#39;timeline&#39; in self.views:</span>
+      <span class="c1">#   self.timelineWebView.page().runJavaScript(&quot;&quot;&quot;highlightMarker(`{0}`)&quot;&quot;&quot;.format(index.row()))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_properties_tab</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_tracklist</span><span class="p">()</span>
+
+    <span class="k">return</span></div>
+
+<div class="viewcode-block" id="View.update_tracklist"><a class="viewcode-back" href="../view.html#view.View.update_tracklist">[docs]</a>  <span class="k">def</span> <span class="nf">update_tracklist</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Retrieves a tracklist and adds it to the list viewable by the user.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Clear previous tracklist</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistView</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+
+    <span class="c1"># Create dict to store CALMA URLs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistCalma</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="c1"># Get label in list</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_label_current_row</span><span class="p">()</span>
+
+    <span class="c1"># Retrieve tracklist</span>
+    <span class="n">tracklist</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">get_tracklist_grouped</span><span class="p">(</span><span class="n">label</span><span class="p">)</span>
+
+    <span class="c1"># Fill CALMA dict, storing the label and track number</span>
+    <span class="n">labelNumMapping</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">track</span> <span class="ow">in</span> <span class="n">tracklist</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="s1">&#39;bindings&#39;</span><span class="p">]:</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;calma&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">tracklistCalma</span><span class="p">[</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">track</span><span class="p">[</span><span class="s1">&#39;calma&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+
+      <span class="c1"># Store relationship between a label and it&#39;s track number</span>
+      <span class="n">labelNumMapping</span><span class="p">[</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;num&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+      <span class="n">labels</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+
+    <span class="c1"># Remove duplicates</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">labels</span><span class="p">))</span>
+    <span class="n">labels</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">labelNumMapping</span><span class="p">[</span><span class="n">x</span><span class="p">])</span>
+
+    <span class="c1"># Add new tracklist to list widget</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">labels</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">tracklistView</span><span class="o">.</span><span class="n">addItem</span><span class="p">(</span><span class="n">i</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="View.search_table"><a class="viewcode-back" href="../view.html#view.View.search_table">[docs]</a>  <span class="k">def</span> <span class="nf">search_table</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">text</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Search the table view for a particular item.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Search table</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tableHandler</span><span class="o">.</span><span class="n">get_table</span><span class="p">()</span><span class="o">.</span><span class="n">findItems</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">infoWindowWidgets</span><span class="p">[</span><span class="s1">&#39;searchBox&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">(),</span> <span class="n">QtCore</span><span class="o">.</span><span class="n">Qt</span><span class="o">.</span><span class="n">MatchContains</span><span class="p">)</span>
+
+    <span class="c1"># Move view to selected item</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">move_focus</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">row</span><span class="p">()))</span></div>
+
+<div class="viewcode-block" id="View.add_tooltips"><a class="viewcode-back" href="../view.html#view.View.add_tooltips">[docs]</a>  <span class="k">def</span> <span class="nf">add_tooltips</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">tracklistView</span><span class="o">.</span><span class="n">setToolTip</span><span class="p">(</span><span class="s2">&quot;Displays a track-list for a given performance, click for CALMA data.&quot;</span><span class="p">)</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Cameron Allan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

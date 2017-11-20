@@ -1,0 +1,81 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+
+\begin{document}
+\begin{algorithm}
+\caption{Creating Map Interface using QWebEngine, Leaflet, PyQt5}
+\begin{algorithmic}[1]
+\Procedure{Pre-Process Map}{}
+\State $\textit{Create data-structure for storing: marker objects, heatmap densities}$
+\State $\textit{Create event-listener for pop-ups, mapped to "On Marker Click"}$
+\State $\textit{Create event-listener for handling overlapping markers, mapped to "Spidifier" function}$
+\EndProcedure
+\end{algorithmic}
+
+\begin{algorithmic}[1]
+\Procedure{Add Data Point}{}
+\State $\textit{Push title of performance to title data structure}$
+\State $\textit{Create marker object using latitude, longitude, icon glyph}$
+\State $\textit{Append heatmap weight to our densities data structure}$
+\State $\textit{Add the marker object to our spidifier (allowing for overlapping makers)}$
+\State $\textit{Store the info-box reference for this marker in our data structure)}$
+\EndProcedure
+\end{algorithmic}
+
+\begin{algorithmic}[1]
+\Procedure{Post-Process Map}{}
+\State $\textit{toggleHeatmap = False}$
+\State $\textit{toggleMarkers = True}$
+\State $\textit{Generate layer-group of marker objects}$
+\State $\textit{Generate heatmap layer using densities stored}$
+\State $\textit{Add markers layer-group to map}$
+\State $\textit{Add heatmap layer to map (hidden via boolean flag)}$
+\State $\textit{Call Leaflet.tileLayer to add an underlying OpenStreetMaps view}$
+\State $\textit{Add custom marker buttons to toggle markers / heatmap as visible / non-visible}$
+\EndProcedure
+\end{algorithmic}
+
+\begin{algorithmic}[1]
+\Procedure{On Marker Click}{}
+\State $\textit{Open QWebChannel to recieve data from GeoNames API}$
+\State $\textit{Wait until data for GeoNames, Last.FM venue is returned}$
+\State $\textit{Generate a HTML view of the data}$
+\State $\textit{Create internal page links for viewing the GeoNames bounds}$
+\State $\textit{Map this HTML view to the relevant info-box position (i.e. above the marker)}$
+\State $\textit{Pan to the lat, lng co-ordinates over the marker}$
+\EndProcedure
+\end{algorithmic}
+
+\begin{algorithmic}[1]
+\Procedure{Intercept Link-Click Event}{}
+\If{HTTP link is "internal", i.e. references a state within the map} 
+  \State $\textit{Intercept link click using event-listener, prevent re-directing from the page}$
+  \State $\textit{Extract parameters (i.e. marker label), from the HTTP link}$
+  \If{GeoNames bounds requested} 
+    \State $\textit{Close any markers currently open}$
+    \State $\textit{Open QWebChannel to recieve data from GeoNames API}$
+    \State $\textit{Calculate SouthWest and NorthEast corners}$
+    \State $\textit{Draw this rectangle on the map}$
+    \State $\textit{Pan the view-port to this rectangle, and zoom out}$
+  \EndIf
+\EndIf
+\EndProcedure
+\end{algorithmic}
+
+\begin{algorithmic}[1]
+\Procedure{Shift Focus}{}
+\State $\textit{Close any marker pop-ups currently open}$
+\State $\textit{Retrieve marker object relative to provided index}$
+\State $\textit{Set icon of this marker to BLUE}$
+\State $\textit{Call "On Marker Click" to retrieve geographical information for this marker}$
+\State $\textit{Reset icon of previously selected icon, if appropriate}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+\end{document} 
