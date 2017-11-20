@@ -1,0 +1,239 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>view module &#8212; Meta-Data Browser for Live Music  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-view">
+<span id="view-module"></span><h1>view module<a class="headerlink" href="#module-view" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="view.View">
+<em class="property">class </em><code class="descclassname">view.</code><code class="descname">View</code><span class="sig-paren">(</span><em>app</em>, <em>search</em>, <em>views</em>, <em>results</em>, <em>hasCalma</em>, <em>searchLayout</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal"><span class="pre">object</span></code></p>
+<p>This class defines a data view of a SPARQL query search.</p>
+<dl class="method">
+<dt id="view.View.add_tooltips">
+<code class="descname">add_tooltips</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.add_tooltips"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.add_tooltips" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.change_proportions">
+<code class="descname">change_proportions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.change_proportions"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.change_proportions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adjusts the proportions of dialog given to each individual view.</p>
+<p>This function is called whenever the user moves the sliders in the “Layout” tab, the
+sliders dictate the ratio between the view, e.g. 10:10:10 would give each an equal amount
+of space.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.change_to_results">
+<code class="descname">change_to_results</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.change_to_results"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.change_to_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.change_to_search">
+<code class="descname">change_to_search</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.change_to_search"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.change_to_search" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.create_layouts">
+<code class="descname">create_layouts</code><span class="sig-paren">(</span><em>views</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.create_layouts"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.create_layouts" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the layouts for the data view (the overall dialog).</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>views <span class="classifier-delimiter">:</span> <span class="classifier">str[]</span></dt>
+<dd>List of requested views.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.create_search_properties_window">
+<code class="descname">create_search_properties_window</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.create_search_properties_window"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.create_search_properties_window" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a properties window for a data view.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.generate_map">
+<code class="descname">generate_map</code><span class="sig-paren">(</span><em>results</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.generate_map"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.generate_map" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generates a map view for the SPARQL query results.</p>
+<p>The map dialog utilizes a QWebEngineView, webkit-based, to display an OpenStreetMap
+tiles layer with the data placed on top.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>results <span class="classifier-delimiter">:</span> <span class="classifier">{}</span></dt>
+<dd>The results of the SPARQL query.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.generate_plot_view">
+<code class="descname">generate_plot_view</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.generate_plot_view"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.generate_plot_view" title="Permalink to this definition">¶</a></dt>
+<dd><p>Starts a new plot of CALMA data.</p>
+<p>This function is typically called after CALMA data has been retrieved
+and a track has been clicked upon.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.generate_table">
+<code class="descname">generate_table</code><span class="sig-paren">(</span><em>results</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.generate_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.generate_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Begins the process of generating a table with the search results.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>results <span class="classifier-delimiter">:</span> <span class="classifier">dict</span></dt>
+<dd>Dictionary of search results.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.get_label_current_row">
+<code class="descname">get_label_current_row</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.get_label_current_row"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.get_label_current_row" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.get_layout">
+<code class="descname">get_layout</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.get_layout"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.get_layout" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.graph_calma">
+<code class="descname">graph_calma</code><span class="sig-paren">(</span><em>item</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.graph_calma"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.graph_calma" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves CALMA data and then requests a plot of said data.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+<dt>item <span class="classifier-delimiter">:</span> <span class="classifier">QModelIndex</span></dt>
+<dd>Index in the tracklist clicked.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.move_focus">
+<code class="descname">move_focus</code><span class="sig-paren">(</span><em>index</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.move_focus"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.move_focus" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.search_table">
+<code class="descname">search_table</code><span class="sig-paren">(</span><em>text</em><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.search_table"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.search_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Search the table view for a particular item.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="view.View.toggleSearchWindow">
+<code class="descname">toggleSearchWindow</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.toggleSearchWindow"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.toggleSearchWindow" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.update_properties_tab">
+<code class="descname">update_properties_tab</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.update_properties_tab"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.update_properties_tab" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="view.View.update_tracklist">
+<code class="descname">update_tracklist</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/view.html#View.update_tracklist"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#view.View.update_tracklist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Retrieves a tracklist and adds it to the list viewable by the user.</p>
+<dl class="docutils">
+<dt>self <span class="classifier-delimiter">:</span> <span class="classifier">instance</span></dt>
+<dd>Class instance.</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Cameron Allan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+      |
+      <a href="_sources/view.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

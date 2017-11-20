@@ -1,0 +1,31 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+
+\makeatletter
+\def\BState{\State\hskip-\ALG@thistlm}
+\makeatother
+
+\begin{document}
+\begin{algorithm}
+\caption{Playing audio from buffer using pyAudio}
+\begin{algorithmic}[1]
+\Procedure{Play Audio}{}
+\State $\textit{nowPlaying = True}$
+\State $\textit{byteCount = 0}$
+\While{(nowPlaying and not threadQuitFlag)}
+\State $\textit{Read raw audio chunk of 88200 bytes}$
+\State $\textit{byteCount += 88200}$
+\State $\textit{Emit signal for track progress with value (byteCount // 176400)}$
+\If{Length of chunk is 3} 
+\State $\textit{nowPlaying = False}$
+\Else
+\State $\textit{Write raw audio chunk to pyAudio stream}$
+\EndIf
+\EndWhile
+\State $\textit{Get next track}$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+\end{document} 

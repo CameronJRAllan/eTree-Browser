@@ -1,0 +1,520 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>audio &#8212; Meta-Data Browser for Live Music  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for audio</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">pyaudio</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">multithreading</span>
+<span class="kn">import</span> <span class="nn">qtawesome</span> <span class="k">as</span> <span class="nn">qta</span>
+<span class="kn">from</span> <span class="nn">random</span> <span class="k">import</span> <span class="n">randint</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<div class="viewcode-block" id="Audio"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio">[docs]</a><span class="k">class</span> <span class="nc">Audio</span><span class="p">():</span>
+  <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">  The audio class handles playback of audio links stored within the eTree meta-data set.</span>
+
+<span class="sd">  It primarily utilizes FFMPEG to handle the decoding of the audio into a byte-stream,</span>
+<span class="sd">  which may then be piped into a PyAudio instance and played to the user, all within a</span>
+<span class="sd">  seperate thread from the main application thread loop.</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">app</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates an instance of the Audio class for handling audio-related operations.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    app : instance</span>
+<span class="sd">        Main dialog reference.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">app</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">threadFlag</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">currentUrl</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Audio.ffmpeg_pipeline"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.ffmpeg_pipeline">[docs]</a>  <span class="k">def</span> <span class="nf">ffmpeg_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Creates an FFMPEG sub-process to handling audio decoding,</span>
+<span class="sd">    while emitting relevant meta-data to the main application thread</span>
+<span class="sd">    as necessary.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    url : str</span>
+<span class="sd">        The URL of the audio link we wish to play.</span>
+<span class="sd">    kwargs : {}</span>
+<span class="sd">        Dictionary of signals which emit to the main application thread.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Create PyAudio instance</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pyAudio</span> <span class="o">=</span> <span class="n">pyaudio</span><span class="o">.</span><span class="n">PyAudio</span><span class="p">()</span>
+
+    <span class="c1"># Save URL for future seeking</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">currentUrl</span> <span class="o">=</span> <span class="n">url</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_progress_signal</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;update_track_progress&#39;</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">on_track_finished_signal</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;track_finished&#39;</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scrobble_track</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;scrobble_track&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Get duration of track</span>
+    <span class="n">duration</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">check_output</span><span class="p">([</span><span class="s1">&#39;ffprobe&#39;</span><span class="p">,</span> <span class="s1">&#39;-i&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="s1">&#39;-show_entries&#39;</span><span class="p">,</span> <span class="s1">&#39;format=duration&#39;</span><span class="p">,</span> <span class="s1">&#39;-v&#39;</span><span class="p">,</span> <span class="s1">&#39;quiet&#39;</span><span class="p">,</span>
+                                        <span class="s1">&#39;-of&#39;</span><span class="p">,</span> <span class="s1">&#39;csv=</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="s2">&quot;p=0&quot;</span><span class="p">)])</span>
+    <span class="n">duration</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;b&#39;&quot;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\\</span><span class="s2">n&#39;&quot;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+
+    <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;update_track_duration&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">duration</span><span class="p">))</span>
+
+    <span class="c1"># Create ffMPEG command, options chosen from sub-set of list given by &#39;ffmpeg -formats&#39;</span>
+    <span class="n">command</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;ffmpeg&#39;</span><span class="p">,</span>
+               <span class="s1">&#39;-ss&#39;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;seek&#39;</span><span class="p">]),</span>  <span class="c1"># Set start time to that provided</span>
+               <span class="s1">&#39;-i&#39;</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span>  <span class="c1"># Set input to URL provided</span>
+               <span class="s1">&#39;-loglevel&#39;</span><span class="p">,</span> <span class="s1">&#39;error&#39;</span><span class="p">,</span>
+               <span class="s1">&#39;-f&#39;</span><span class="p">,</span> <span class="s1">&#39;s16le&#39;</span><span class="p">,</span>  <span class="c1"># PCM signed 16-bit little-endian</span>
+               <span class="s1">&#39;-acodec&#39;</span><span class="p">,</span> <span class="s1">&#39;pcm_s16le&#39;</span><span class="p">,</span>  <span class="c1"># PCM is used to get raw audio data</span>
+               <span class="s1">&#39;-ar&#39;</span><span class="p">,</span> <span class="s1">&#39;44100&#39;</span><span class="p">,</span>  <span class="c1"># Set sampling frequency to most common</span>
+               <span class="s1">&#39;-ac&#39;</span><span class="p">,</span> <span class="s1">&#39;2&#39;</span><span class="p">,</span>  <span class="c1"># 2 channels for stereo</span>
+               <span class="s1">&#39;-&#39;</span><span class="p">]</span>
+
+    <span class="c1"># Create pipe-line</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">,</span> <span class="n">bufsize</span><span class="o">=</span><span class="mi">10</span> <span class="o">**</span> <span class="mi">8</span><span class="p">)</span>
+
+    <span class="c1"># Set pipe-line destination to pyAudio instance</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pyAudio</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="nb">format</span><span class="o">=</span><span class="n">pyaudio</span><span class="o">.</span><span class="n">paInt16</span><span class="p">,</span>
+                                    <span class="n">channels</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                                    <span class="n">rate</span><span class="o">=</span><span class="mi">44100</span><span class="p">,</span>
+                                    <span class="n">output</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Start pipe-line process</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;seek&#39;</span><span class="p">]:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">start_audio</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">start_audio</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s1">&#39;seek&#39;</span><span class="p">])</span></div>
+
+<div class="viewcode-block" id="Audio.start_audio"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.start_audio">[docs]</a>  <span class="k">def</span> <span class="nf">start_audio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seek</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Starts the process is reading the sub-process (FFMPEG) audio byte</span>
+<span class="sd">    stream into PyAudio for playback.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    seek : int</span>
+<span class="sd">        The position we wish to began at (where the start is 0).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">hasScrobbled</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">byteCount</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># While there is audio to play</span>
+    <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">threadFlag</span><span class="p">:</span>
+      <span class="c1"># Get raw audio chunk</span>
+      <span class="n">raw_audio_chunk</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="mi">44100</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+
+      <span class="c1"># Emit current time in seconds</span>
+      <span class="c1"># 176400 is derived from 16-bit 44100Hz (88200 bytes), multiplied by 2 for stereo</span>
+      <span class="n">byteCount</span> <span class="o">+=</span> <span class="mi">44100</span> <span class="o">*</span> <span class="mi">2</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">update_progress_signal</span><span class="o">.</span><span class="n">emit</span><span class="p">(</span><span class="n">seek</span> <span class="o">+</span> <span class="p">(</span><span class="n">byteCount</span> <span class="o">//</span> <span class="mi">176400</span><span class="p">))</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="n">byteCount</span> <span class="o">//</span> <span class="mi">176400</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">30</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">hasScrobbled</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hasScrobbled</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scrobble_track</span><span class="o">.</span><span class="n">emit</span><span class="p">()</span>
+      <span class="c1"># Even an empty byte stream has length 3</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">raw_audio_chunk</span><span class="p">))</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span> <span class="o">=</span> <span class="kc">False</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># Write to stream</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">raw_audio_chunk</span><span class="p">)</span>
+
+    <span class="c1"># Get next track</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">stop_stream</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pipeline</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">pyAudio</span><span class="o">.</span><span class="n">terminate</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">on_track_finished_signal</span><span class="o">.</span><span class="n">emit</span><span class="p">()</span>
+
+    <span class="k">return</span></div>
+
+<div class="viewcode-block" id="Audio.get_url"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.get_url">[docs]</a>  <span class="k">def</span> <span class="nf">get_url</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Returns the currently set URL.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">currentUrl</span></div>
+
+<div class="viewcode-block" id="Audio.change_play_state"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.change_play_state">[docs]</a>  <span class="k">def</span> <span class="nf">change_play_state</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Either starts of resumes playback of the currently set track URL.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">pyAudio</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">try</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">stop_stream</span><span class="p">()</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">start_stream</span><span class="p">()</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;self.Stream not set&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Audio.set_volume"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.set_volume">[docs]</a>  <span class="k">def</span> <span class="nf">set_volume</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sets the volume of the application.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    value : int</span>
+<span class="sd">        The value (in range 0 to 100) that we wish to set volume to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># If value is valid</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">value</span> <span class="o">&lt;=</span> <span class="mi">100</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">value</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">):</span>
+
+      <span class="c1"># Change system volume using PulseAudio</span>
+      <span class="n">subprocess</span><span class="o">.</span><span class="n">call</span><span class="p">([</span><span class="s2">&quot;amixer&quot;</span><span class="p">,</span> <span class="s2">&quot;-D&quot;</span><span class="p">,</span> <span class="s2">&quot;pulse&quot;</span><span class="p">,</span> <span class="s2">&quot;sset&quot;</span><span class="p">,</span> <span class="s2">&quot;Master&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;%&quot;</span><span class="p">])</span>
+
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Audio.set_seek"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.set_seek">[docs]</a>  <span class="k">def</span> <span class="nf">set_seek</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seekTime</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Sets the current position we are playing back, in the track.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    seekTime : int</span>
+<span class="sd">        The time we wish to seek to.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">currentUrl</span><span class="p">:</span>
+      <span class="c1"># Format seek time as HH:MM:SS</span>
+      <span class="n">seekTime</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s1">&#39;%H:%M:%S&#39;</span><span class="p">,</span> <span class="n">time</span><span class="o">.</span><span class="n">gmtime</span><span class="p">(</span><span class="n">seekTime</span><span class="p">))</span>
+
+      <span class="c1"># Restart stream at this new time</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">ffmpeg_pipeline</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">currentUrl</span><span class="p">,</span> <span class="n">seek</span><span class="o">=</span><span class="n">seekTime</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Audio.next_click"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.next_click">[docs]</a>  <span class="k">def</span> <span class="nf">next_click</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Goes to the next track.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">fetch_next_track</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Audio.previous_click"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.previous_click">[docs]</a>  <span class="k">def</span> <span class="nf">previous_click</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Goes to the previous track.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Fetch_next_track increments by one, so we decrement by two</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">-=</span> <span class="mi">2</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">fetch_next_track</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Audio.fetch_next_track"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.fetch_next_track">[docs]</a>  <span class="k">def</span> <span class="nf">fetch_next_track</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fetches the next track to be played, depending on user preferences for</span>
+<span class="sd">    playback behaviour in the queue.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">kill_audio_thread</span><span class="p">()</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">repeatCombo</span><span class="o">.</span><span class="n">currentText</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;Repeat All&#39;</span><span class="p">:</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">trackLbl</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">repeatCombo</span><span class="o">.</span><span class="n">currentText</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;Shuffle&#39;</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">=</span> <span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist</span><span class="p">))</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">trackLbl</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+    <span class="c1"># Start playing next track in playlist</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">start_audio_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Audio.send_duration"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.send_duration">[docs]</a>  <span class="k">def</span> <span class="nf">send_duration</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">duration</span><span class="p">):</span>
+    <span class="c1"># Update duration of progress bar</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">trackProgress</span><span class="o">.</span><span class="n">setMaximum</span><span class="p">(</span><span class="n">duration</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="n">duration</span></div>
+
+<div class="viewcode-block" id="Audio.start_audio_thread"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.start_audio_thread">[docs]</a>  <span class="k">def</span> <span class="nf">start_audio_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">seek</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">kill_audio_thread</span><span class="p">()</span>
+    <span class="n">worker</span> <span class="o">=</span> <span class="n">multithreading</span><span class="o">.</span><span class="n">WorkerThread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">audioHandler</span><span class="o">.</span><span class="n">ffmpeg_pipeline</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">seek</span><span class="o">=</span><span class="n">seek</span><span class="p">)</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">qt_signals</span><span class="o">.</span><span class="n">track_finished</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fetch_next_track</span><span class="p">)</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">qt_signals</span><span class="o">.</span><span class="n">update_track_progress</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">update_seekbar</span><span class="p">)</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">qt_signals</span><span class="o">.</span><span class="n">update_track_duration</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">send_duration</span><span class="p">)</span>
+    <span class="n">worker</span><span class="o">.</span><span class="n">qt_signals</span><span class="o">.</span><span class="n">scrobble_track</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">scrobble_track_lastfm</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">audioThreadpool</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">worker</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Audio.update_seekbar"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.update_seekbar">[docs]</a>  <span class="k">def</span> <span class="nf">update_seekbar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Updates the seekbar with the current progress of the track playing</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    timestamp : str</span>
+<span class="sd">        Timestamp provided by FFMPEG.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Calculate minutes and seconds format</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">trackProgress</span><span class="o">.</span><span class="n">setValue</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)))</span>
+    <span class="n">m</span><span class="p">,</span> <span class="n">s</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)),</span> <span class="mi">60</span><span class="p">)</span>
+    <span class="n">dm</span><span class="p">,</span> <span class="n">ds</span> <span class="o">=</span> <span class="nb">divmod</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="p">)),</span> <span class="mi">60</span><span class="p">)</span>
+
+    <span class="c1"># Ensures that when the seconds is &lt; 10, we add an extra 0 to ensure correct formatting</span>
+    <span class="k">if</span> <span class="n">s</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+      <span class="n">s</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">ds</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+      <span class="n">ds</span> <span class="o">=</span> <span class="s1">&#39;0&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span>
+    <span class="n">lbl</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">m</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39; / &#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">dm</span><span class="p">)</span> <span class="o">+</span> <span class="s1">&#39;:&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">ds</span><span class="p">)</span>
+
+    <span class="c1"># Add key information if applicable</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hasCalma</span><span class="p">:</span>
+      <span class="n">lbl</span> <span class="o">=</span> <span class="n">lbl</span> <span class="o">+</span> <span class="s1">&#39; (&#39;</span> <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">calmaHandler</span><span class="o">.</span><span class="n">get_key_at_time</span><span class="p">(</span><span class="n">timestamp</span><span class="p">))</span> <span class="o">+</span> <span class="s1">&#39;)&#39;</span>
+
+    <span class="c1"># Set time label to new time</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">timeLbl</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">lbl</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Audio.kill_audio_thread"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.kill_audio_thread">[docs]</a>  <span class="k">def</span> <span class="nf">kill_audio_thread</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># Tell thread to stop</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">threadFlag</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="c1"># Wait until thread can respond to our flag change</span>
+    <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+
+    <span class="c1"># Reset flag</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">threadFlag</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Audio.user_audio_clicked"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.user_audio_clicked">[docs]</a>  <span class="k">def</span> <span class="nf">user_audio_clicked</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">audioList</span><span class="p">,</span> <span class="n">index</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Starts audio playback when a user clicks on a release, or track.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    audioList : []</span>
+<span class="sd">        A list, where each element is a dictionary with information regarding 1 track.</span>
+<span class="sd">    index : int</span>
+<span class="sd">        The index in the playlist we wish to begin from.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">playlist</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Add to playlist</span>
+    <span class="n">first</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">num</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">for</span> <span class="n">track</span> <span class="ow">in</span> <span class="n">audioList</span><span class="p">:</span>
+      <span class="n">num</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">playlist</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">],</span> <span class="n">track</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">],</span> <span class="n">track</span><span class="p">[</span><span class="s1">&#39;tracklist&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]])</span>
+      <span class="k">if</span> <span class="n">first</span> <span class="ow">and</span> <span class="n">num</span> <span class="o">&gt;=</span> <span class="n">index</span><span class="p">:</span>
+        <span class="n">first</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span> <span class="o">=</span> <span class="n">num</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_audio_thread</span><span class="p">(</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">],</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># self.append_history(track)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">trackLbl</span><span class="o">.</span><span class="n">setText</span><span class="p">(</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+
+        <span class="c1"># Check whether calma data available</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">calmaHandler</span><span class="o">.</span><span class="n">get_features_track</span><span class="p">(</span><span class="n">track</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]):</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">hasCalma</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+          <span class="bp">self</span><span class="o">.</span><span class="n">hasCalma</span> <span class="o">=</span> <span class="kc">False</span>
+
+          <span class="c1"># If adding tracks after to the queue</span>
+          <span class="c1"># else:</span>
+          <span class="c1">#   if num &gt;= index:</span>
+          <span class="c1">#     self.playlist.append([track[&#39;audio&#39;][&#39;value&#39;], track[&#39;label&#39;][&#39;value&#39;]])</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">playPauseBtn</span><span class="o">.</span><span class="n">setIcon</span><span class="p">(</span><span class="n">qta</span><span class="o">.</span><span class="n">icon</span><span class="p">(</span><span class="s1">&#39;fa.pause&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">nowPlayingHandler</span><span class="o">.</span><span class="n">update_playlist_view</span><span class="p">()</span></div>
+
+<div class="viewcode-block" id="Audio.extract_tracklist_single_format"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.extract_tracklist_single_format">[docs]</a>  <span class="k">def</span> <span class="nf">extract_tracklist_single_format</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tracklist</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Takes an input a tracklist dictionary, and extracts a distinct tracklist</span>
+<span class="sd">    relating to a single, user-preferred, format.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    tracklist : dict</span>
+<span class="sd">        Dictionary of tracks for a particular release.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">audioList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">found</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">foundFormat</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>
+    <span class="k">for</span> <span class="nb">format</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">formats</span><span class="p">:</span>
+      <span class="c1"># Look at each track</span>
+      <span class="k">for</span> <span class="n">track</span> <span class="ow">in</span> <span class="n">tracklist</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="s1">&#39;bindings&#39;</span><span class="p">]:</span>
+        <span class="c1"># If we have not found a format yet</span>
+        <span class="k">if</span> <span class="n">found</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+          <span class="c1"># If we find a suitable format</span>
+          <span class="k">if</span> <span class="n">track</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="nb">format</span><span class="p">):</span>
+            <span class="c1"># Store and ensure we don&#39;t continue checking</span>
+            <span class="n">found</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">foundFormat</span> <span class="o">=</span> <span class="nb">format</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">debugDialog</span><span class="o">.</span><span class="n">add_line</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">: found matching format </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">_getframe</span><span class="p">()</span><span class="o">.</span><span class="n">f_code</span><span class="o">.</span><span class="n">co_name</span><span class="p">,</span> <span class="n">foundFormat</span><span class="p">))</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">found</span><span class="p">:</span>
+      <span class="n">foundFormat</span> <span class="o">=</span> <span class="s1">&#39;.flac&#39;</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">debugDialog</span><span class="o">.</span><span class="n">add_line</span><span class="p">(</span><span class="s1">&#39;</span><span class="si">{0}</span><span class="s1">: issue finding format, defaulting to </span><span class="si">{1}</span><span class="s1">&#39;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">_getframe</span><span class="p">()</span><span class="o">.</span><span class="n">f_code</span><span class="o">.</span><span class="n">co_name</span><span class="p">,</span> <span class="n">foundFormat</span><span class="p">))</span>
+
+    <span class="n">num</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">for</span> <span class="n">track</span> <span class="ow">in</span> <span class="n">tracklist</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="s1">&#39;bindings&#39;</span><span class="p">]:</span>
+      <span class="c1"># If we find a track with a suitable file extension</span>
+      <span class="k">if</span> <span class="n">foundFormat</span> <span class="ow">in</span> <span class="n">track</span><span class="p">[</span><span class="s1">&#39;audio&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">][</span><span class="o">-</span><span class="mi">7</span><span class="p">:]:</span>
+        <span class="n">audioList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">track</span><span class="p">)</span>
+        <span class="n">num</span> <span class="o">+=</span> <span class="mi">1</span>
+
+    <span class="k">return</span> <span class="n">audioList</span></div>
+
+<div class="viewcode-block" id="Audio.play_pause"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.play_pause">[docs]</a>  <span class="k">def</span> <span class="nf">play_pause</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="c1"># If we&#39;re currently playing a track</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">kill_audio_thread</span><span class="p">()</span>
+      <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">playPauseBtn</span><span class="o">.</span><span class="n">setIcon</span><span class="p">(</span><span class="n">qta</span><span class="o">.</span><span class="n">icon</span><span class="p">(</span><span class="s1">&#39;fa.play&#39;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="c1"># Start playing audio from position</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">start_audio_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">playlist_index</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">trackProgress</span><span class="o">.</span><span class="n">value</span><span class="p">())</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">playPauseBtn</span><span class="o">.</span><span class="n">setIcon</span><span class="p">(</span><span class="n">qta</span><span class="o">.</span><span class="n">icon</span><span class="p">(</span><span class="s1">&#39;fa.pause&#39;</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span> <span class="o">=</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">isPlaying</span></div>
+
+<div class="viewcode-block" id="Audio.track_seek"><a class="viewcode-back" href="../test_build/audio.html#audio.Audio.track_seek">[docs]</a>  <span class="k">def</span> <span class="nf">track_seek</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Starts a given track at a particular seek time.</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    self : instance</span>
+<span class="sd">        Class instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">start_audio_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_url</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">trackProgress</span><span class="o">.</span><span class="n">value</span><span class="p">())</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Cameron Allan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

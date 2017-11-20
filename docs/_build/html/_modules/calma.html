@@ -1,0 +1,283 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>calma &#8212; Meta-Data Browser for Live Music  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true,
+        SOURCELINK_SUFFIX: '.txt'
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for calma</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">SPARQLWrapper</span> <span class="k">import</span> <span class="n">SPARQLWrapper</span><span class="p">,</span> <span class="n">JSON</span><span class="p">,</span> <span class="n">POSTDIRECTLY</span>
+<span class="kn">import</span> <span class="nn">requests</span>
+<span class="kn">from</span> <span class="nn">urlextract</span> <span class="k">import</span> <span class="n">URLExtract</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+<span class="kn">import</span> <span class="nn">rdflib</span>
+<span class="kn">import</span> <span class="nn">urllib.request</span>
+<span class="kn">import</span> <span class="nn">traceback</span>
+
+<div class="viewcode-block" id="Calma"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma">[docs]</a><span class="k">class</span> <span class="nc">Calma</span><span class="p">():</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Initializes an instance of the Calma class.</span>
+
+<span class="sd">    The Calma class is used for all interfacing with the feature extraction tools available at the end-point provided by Sean Bechhofer&#39;s research and work.</span>
+
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span> <span class="o">=</span> <span class="n">SPARQLWrapper</span><span class="p">(</span><span class="s2">&quot;http://etree.linkedmusic.org/sparql&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">setReturnFormat</span><span class="p">(</span><span class="n">JSON</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">setMethod</span><span class="p">(</span><span class="s2">&quot;POST&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">extractURL</span> <span class="o">=</span> <span class="n">URLExtract</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">keyInfo</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">loudnessValues</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">loudnessInfo</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="Calma.get_features_track"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.get_features_track">[docs]</a>  <span class="k">def</span> <span class="nf">get_features_track</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">trackAudioURL</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;URL : &#39;</span>  <span class="o">+</span> <span class="nb">str</span><span class="p">(</span><span class="n">trackAudioURL</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">keyInfo</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">loudnessValues</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">loudnessInfo</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># http://archive.org/download/dbt2004-05-08.4011s.flac16/dbt2004-05-08d1t02.flac</span>
+    <span class="c1"># Get parent sub-event for this track</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">setQuery</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                            PREFIX etree:&lt;http://etree.linkedmusic.org/vocab/&gt;</span>
+<span class="s2">                            PREFIX calma: &lt;http://calma.linkedmusic.org/vocab/&gt;</span>
+<span class="s2">                            </span>
+<span class="s2">                            SELECT * {{</span>
+<span class="s2">                            ?s etree:audio &lt;</span><span class="si">{0}</span><span class="s2">&gt;.</span>
+<span class="s2">                            }} LIMIT 1</span>
+<span class="s2">                         &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">trackAudioURL</span><span class="p">))</span>
+
+    <span class="n">subEvent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">query</span><span class="p">()</span><span class="o">.</span><span class="n">convert</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subEvent</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="s1">&#39;bindings&#39;</span><span class="p">])</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="n">trackURL</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">query</span><span class="p">()</span><span class="o">.</span><span class="n">convert</span><span class="p">()[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="s1">&#39;bindings&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;s&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Returning false, not found&#39;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="kc">False</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">setQuery</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">                            PREFIX etree:&lt;http://etree.linkedmusic.org/vocab/&gt;</span>
+<span class="s2">                            PREFIX calma: &lt;http://calma.linkedmusic.org/vocab/&gt;</span>
+<span class="s2">                            </span>
+<span class="s2">                            SELECT * {{</span>
+<span class="s2">                            &lt;</span><span class="si">{0}</span><span class="s2">&gt; calma:data ?o.</span>
+<span class="s2">                            }}</span>
+<span class="s2">                         &quot;&quot;&quot;</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="n">trackURL</span><span class="p">))</span>
+    <span class="n">calmaURL</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">sparql</span><span class="o">.</span><span class="n">query</span><span class="p">()</span><span class="o">.</span><span class="n">convert</span><span class="p">()</span>
+
+    <span class="c1"># If no calma data found for this URL</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">calmaURL</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="s1">&#39;bindings&#39;</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Returning false, not found&#39;</span><span class="p">)</span>
+      <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">set_new_track_calma</span><span class="p">(</span><span class="n">calmaURL</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">][</span><span class="s1">&#39;bindings&#39;</span><span class="p">][</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;o&#39;</span><span class="p">][</span><span class="s1">&#39;value&#39;</span><span class="p">])</span>
+      <span class="k">return</span> <span class="kc">True</span></div>
+
+<div class="viewcode-block" id="Calma.set_new_track_calma"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.set_new_track_calma">[docs]</a>  <span class="k">def</span> <span class="nf">set_new_track_calma</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calmaURL</span><span class="p">):</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">keyInfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_calma_data</span><span class="p">(</span><span class="n">calmaURL</span><span class="p">,</span> <span class="s1">&#39;key&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">loudnessInfo</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_calma_data</span><span class="p">(</span><span class="n">calmaURL</span><span class="p">,</span> <span class="s1">&#39;loudness&#39;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Calma.get_calma_data"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.get_calma_data">[docs]</a>  <span class="k">def</span> <span class="nf">get_calma_data</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calmaURL</span><span class="p">,</span> <span class="n">feature</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">feature</span> <span class="o">==</span> <span class="s2">&quot;key&quot;</span><span class="p">:</span>
+      <span class="n">featureURL</span> <span class="o">=</span> <span class="s2">&quot;http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-keydetector&quot;</span>
+    <span class="k">elif</span> <span class="n">feature</span> <span class="o">==</span> <span class="s2">&quot;loudness&quot;</span><span class="p">:</span>
+      <span class="n">featureURL</span> <span class="o">=</span> <span class="s2">&quot;http://vamp-plugins.org/rdf/plugins/vamp-libxtract#loudness&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">raise</span><span class="p">(</span><span class="s2">&quot;feature variable / parameter error&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Get top-level analysis information</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">calmaURL</span> <span class="o">+</span> <span class="s1">&#39;/analyses.ttl&#39;</span>
+
+    <span class="c1"># DEBUGGING DURATION</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">retrieve_duration_from_analyses</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+
+    <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">rdflib</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+    <span class="n">g</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">raw</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;n3&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Get blob information for key changes</span>
+    <span class="k">for</span> <span class="n">subject</span><span class="p">,</span> <span class="n">predicate</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">g</span><span class="p">:</span>
+      <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="o">==</span> <span class="n">featureURL</span><span class="p">:</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">subject</span><span class="p">),</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="n">rdflib</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+        <span class="n">g</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">r</span><span class="o">.</span><span class="n">raw</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;n3&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">subject</span><span class="p">,</span> <span class="n">predicate</span><span class="p">,</span> <span class="n">obj</span> <span class="ow">in</span> <span class="n">g</span><span class="p">:</span>
+          <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">predicate</span><span class="p">)</span> <span class="o">==</span> <span class="s1">&#39;http://calma.linkedmusic.org/vocab/feature_blob&#39;</span><span class="p">:</span>
+            <span class="c1"># Get blob contents</span>
+            <span class="n">g</span> <span class="o">=</span> <span class="n">rdflib</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+            <span class="n">blobContents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">extract_zip</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">feature</span> <span class="o">==</span> <span class="s2">&quot;key&quot;</span><span class="p">:</span>
+              <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">retrieve_key_from_blob</span><span class="p">(</span><span class="n">blobContents</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">feature</span> <span class="o">==</span> <span class="s2">&quot;loudness&quot;</span><span class="p">:</span>
+              <span class="bp">self</span><span class="o">.</span><span class="n">retrieve_loudness_from_blob</span><span class="p">(</span><span class="n">blobContents</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Calma.retrieve_key_from_blob"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.retrieve_key_from_blob">[docs]</a>  <span class="k">def</span> <span class="nf">retrieve_key_from_blob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blob</span><span class="p">):</span>
+    <span class="n">g</span> <span class="o">=</span> <span class="n">rdflib</span><span class="o">.</span><span class="n">Graph</span><span class="p">()</span>
+    <span class="n">g</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">blob</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;n3&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Extract relevant information in blob</span>
+    <span class="n">eventList</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">subject</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">subjects</span><span class="p">():</span>
+      <span class="k">for</span> <span class="nb">object</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">objects</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="n">subject</span><span class="p">):</span>
+
+        <span class="c1"># Add to dictionary of events, times and labels</span>
+        <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">subject</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">eventList</span> <span class="ow">and</span> <span class="s1">&#39;file://&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
+          <span class="n">eventList</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">subject</span><span class="p">)]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="s1">&#39;file://&#39;</span> <span class="ow">in</span> <span class="nb">str</span><span class="p">(</span><span class="n">subject</span><span class="p">):</span>
+          <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="nb">object</span><span class="p">)</span> <span class="o">==</span> <span class="n">rdflib</span><span class="o">.</span><span class="n">term</span><span class="o">.</span><span class="n">BNode</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">obj_2</span> <span class="ow">in</span> <span class="n">g</span><span class="o">.</span><span class="n">objects</span><span class="p">(</span><span class="n">subject</span><span class="o">=</span><span class="nb">object</span><span class="p">):</span> <span class="n">eventList</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">subject</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">obj_2</span><span class="p">))</span>
+          <span class="k">else</span><span class="p">:</span>
+            <span class="n">eventList</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">subject</span><span class="p">)]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="nb">object</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">tidy_key_change</span><span class="p">(</span><span class="n">eventList</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="Calma.retrieve_duration_from_analyses"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.retrieve_duration_from_analyses">[docs]</a>  <span class="k">def</span> <span class="nf">retrieve_duration_from_analyses</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">analysesURL</span><span class="p">):</span>
+    <span class="n">analysesURL</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">analysesURL</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>
+    <span class="n">analysesURL</span> <span class="o">=</span> <span class="n">analysesURL</span><span class="p">[</span><span class="n">analysesURL</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;mo:encodes &quot;</span><span class="p">)</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;mo:encodes </span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">):]</span>
+    <span class="n">analysesURL</span> <span class="o">=</span> <span class="n">analysesURL</span><span class="p">[:</span><span class="n">analysesURL</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s1">&#39;&gt;&#39;</span><span class="p">)</span><span class="o">+</span><span class="mi">1</span><span class="p">:]</span>
+
+    <span class="n">ttl</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">analysesURL</span><span class="p">)</span><span class="o">.</span><span class="n">text</span>
+
+    <span class="n">startIndex</span> <span class="o">=</span> <span class="n">ttl</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;tl:duration </span><span class="se">\&quot;</span><span class="s2">PT&quot;</span><span class="p">)</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;tl:duration </span><span class="se">\&quot;</span><span class="s2">PT&quot;</span><span class="p">)</span>
+    <span class="n">endIndex</span> <span class="o">=</span> <span class="n">ttl</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">^^xsd:duration&quot;</span><span class="p">)</span><span class="o">+</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\&quot;</span><span class="s2">^^xsd:duration&quot;</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="n">ttl</span><span class="p">[</span><span class="n">startIndex</span><span class="p">:</span><span class="n">endIndex</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;S&quot;^^xsd:duration&quot;&quot;&quot;</span><span class="p">,</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">duration</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">duration</span><span class="p">)</span>
+    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">duration</span></div>
+<div class="viewcode-block" id="Calma.retrieve_loudness_from_blob"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.retrieve_loudness_from_blob">[docs]</a>  <span class="k">def</span> <span class="nf">retrieve_loudness_from_blob</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">blob</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">loudnessValues</span> <span class="o">=</span> <span class="n">blob</span><span class="p">[</span><span class="n">blob</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;af:value </span><span class="se">\&quot;</span><span class="s2">&quot;</span><span class="p">)</span><span class="o">+</span><span class="mi">11</span><span class="p">:</span><span class="o">-</span><span class="mi">4</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">loudnessValues</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">l</span><span class="p">)</span> <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">loudnessValues</span><span class="p">]</span>
+      <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+      <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">()</span>
+      <span class="k">return</span> <span class="kc">False</span></div>
+
+<div class="viewcode-block" id="Calma.tidy_key_change"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.tidy_key_change">[docs]</a>  <span class="k">def</span> <span class="nf">tidy_key_change</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="c1"># Remove duplicates</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+      <span class="nb">dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+      <span class="n">temp</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="n">key</span><span class="p">]))</span>
+      <span class="n">temp</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">temp</span> <span class="k">if</span> <span class="ow">not</span> <span class="s1">&#39;://&#39;</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
+      <span class="nb">dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">temp</span>
+
+    <span class="n">finalList</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># Re-create list using consistent formatting</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">dict</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+      <span class="c1"># If sub-list has a length we were expecting</span>
+      <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="n">key</span><span class="p">])</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
+        <span class="n">subList</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># For each item in the sub-list</span>
+        <span class="k">for</span> <span class="n">subItem</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="nb">dict</span><span class="p">[</span><span class="n">key</span><span class="p">])):</span>
+          <span class="c1"># If this is a time of a key change</span>
+          <span class="k">if</span> <span class="n">subItem</span><span class="p">[:</span><span class="mi">2</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;PT&#39;</span><span class="p">:</span>
+            <span class="n">subList</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">subItem</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;PT&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;S&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)))</span>
+          <span class="c1"># If this is the key change label</span>
+          <span class="k">if</span> <span class="s1">&#39;minor&#39;</span> <span class="ow">in</span> <span class="n">subItem</span> <span class="ow">or</span> <span class="s1">&#39;major&#39;</span> <span class="ow">in</span> <span class="n">subItem</span><span class="p">:</span>
+            <span class="n">subList</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">subItem</span><span class="p">)</span>
+        <span class="c1"># If correct length</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">subList</span><span class="p">)</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+          <span class="n">finalList</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">subList</span><span class="p">)</span>
+
+    <span class="c1"># Sort by time</span>
+    <span class="n">finalList</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">finalList</span></div>
+
+<div class="viewcode-block" id="Calma.get_key_at_time"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.get_key_at_time">[docs]</a>  <span class="k">def</span> <span class="nf">get_key_at_time</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">time</span><span class="p">):</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">keyInfo</span> <span class="ow">and</span> <span class="n">time</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">:</span>
+      <span class="k">return</span> <span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">keyInfo</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span><span class="nb">abs</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">time</span><span class="p">))[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="k">return</span> <span class="kc">None</span></div>
+
+<div class="viewcode-block" id="Calma.extract_zip"><a class="viewcode-back" href="../test_build/calma.html#calma.Calma.extract_zip">[docs]</a>  <span class="k">def</span> <span class="nf">extract_zip</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">zipURL</span><span class="p">):</span>
+    <span class="c1"># Download .bz2 file to tmp directory</span>
+    <span class="n">file_name</span><span class="p">,</span> <span class="n">headers</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlretrieve</span><span class="p">(</span><span class="n">zipURL</span><span class="p">)</span>
+
+    <span class="c1"># Load into memory</span>
+    <span class="n">tar</span> <span class="o">=</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;r:bz2&#39;</span><span class="p">,</span> <span class="n">fileobj</span><span class="o">=</span><span class="n">file_name</span><span class="p">)</span>
+
+    <span class="c1"># Extract file and read into file object</span>
+    <span class="n">f</span> <span class="o">=</span> <span class="n">tar</span><span class="o">.</span><span class="n">extractfile</span><span class="p">(</span><span class="n">tar</span><span class="o">.</span><span class="n">next</span><span class="p">())</span>
+    <span class="n">contents</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+
+    <span class="c1"># Return the contents of the file, decoding the byte stream to UTF-8</span>
+    <span class="k">return</span> <span class="n">contents</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span></div></div>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">calma</span> <span class="o">=</span> <span class="n">Calma</span><span class="p">()</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  <li><a href="index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2017, Cameron Allan.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.6.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.10</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
