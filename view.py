@@ -5,6 +5,7 @@ import application
 import multithreading
 import calma
 import graph
+import cache
 
 class View():
   """
@@ -36,6 +37,7 @@ class View():
     self.calma = calma.Calma()
     self.hasCalma = hasCalma
     self.searchLayout = searchLayout
+
     # If no results / error occured, log and return
     if isinstance(results, Exception):
       errorDialog = application.ErrorDialog(results)
@@ -49,10 +51,6 @@ class View():
 
     # Generate dialog for user
     self.create_layouts(views)
-  #
-  # def set_left_sidebar(self, layout):
-  #   self.infoWidget.setLayout(self.layout())
-  #   self.infoWidget.setLayout(layout)
 
   def get_layout(self):
     try:
@@ -131,11 +129,11 @@ class View():
     # Info window (left side)
     self.views = views
     self.propertiesSearchWindow = self.create_search_properties_window()
-    self.infoWidget = QtWidgets.QWidget()
-    self.infoLayout = QtWidgets.QStackedLayout() # QtWidgets.QBoxLayout(2)
-    self.infoLayout.addWidget(self.searchLayout)
-    self.infoLayout.addWidget(self.propertiesSearchWindow)
-    self.infoWidget.setLayout(self.infoLayout)
+    self.infoWidget =  QtWidgets.QTabWidget()
+    self.infoWidget.setTabPosition(2)
+    self.infoWidget.addTab(self.searchLayout, 'Search')
+    self.infoWidget.addTab(self.propertiesSearchWindow, 'Results')
+    self.infoWidget.setTabEnabled(1, False)
 
     # Docked layout (right side)
     self.viewsWidget = QtWidgets.QWidget()
@@ -171,8 +169,7 @@ class View():
     self.dockedDialog.setLayout(self.dockedLayout)
     self.dockedLayout.setStretch(0, 2)
     self.dockedLayout.setStretch(1, 8)
-    # self.dockedDialog.setParent(self.searchLayout)
-    # self.dockedDialog.show()
+
     return self.dockedLayout
   def create_search_properties_window(self):
     """
@@ -187,7 +184,6 @@ class View():
     # Create layouts for each tab
     layoutTabLayout = QtWidgets.QGridLayout()
     searchTabLayout = QtWidgets.QGridLayout()
-    graphTabLayout = QtWidgets.QGridLayout()
 
     self.infoWindowWidgets = {}
 
@@ -222,7 +218,24 @@ class View():
     self.infoWindowWidgets['searchBox'] = QtWidgets.QLineEdit()
     searchTabLayout.addWidget(self.infoWindowWidgets['searchBox'], 1, 0)
     searchTabLayout.addWidget(self.infoWindowWidgets['searchButton'], 1, 1)
+    searchTabLayout.addWidget(QtWidgets.QWidget(), 1, 2)
+    searchTabLayout.setRowStretch(0, 1)
+    searchTabLayout.setRowStretch(1, 12)
+    searchTabLayout.setRowStretch(2, 12)
+
     self.infoWindowWidgets['searchButton'].clicked.connect(self.search_table)
+
+    # Add save tab
+    saveTabLayout = QtWidgets.QGridLayout()
+    self.infoWindowWidgets['saveButton'] = QtWidgets.QPushButton('Save')
+    self.infoWindowWidgets['saveEdit'] = QtWidgets.QLineEdit()
+    saveTabLayout.addWidget(self.infoWindowWidgets['saveEdit'], 1, 0)
+    saveTabLayout.addWidget(self.infoWindowWidgets['saveButton'], 1, 1)
+    saveTabLayout.addWidget(QtWidgets.QWidget(), 2, 2)
+    saveTabLayout.setRowStretch(0, 1)
+    saveTabLayout.setRowStretch(1, 12)
+    saveTabLayout.setRowStretch(2, 12)
+    self.infoWindowWidgets['saveButton'].clicked.connect(self.save_search)
 
     # Add tracklist label for properties sub-window
     self.infoWindowWidgets['tracklistLabel'] = QtWidgets.QLabel("Tracklist:")
@@ -231,6 +244,7 @@ class View():
     self.tabWidget = QtWidgets.QTabWidget()
     self.layoutTab = QtWidgets.QTabWidget()
     self.searchTab = QtWidgets.QTabWidget()
+    self.saveTab = QtWidgets.QTabWidget()
     self.propertiesTab = QtWidgets.QTabWidget()
 
     # Add tracklist tab components
@@ -249,24 +263,22 @@ class View():
     self.propertiesTabLayout.addWidget(self.tracklistWidget)
     self.propertiesTab.setLayout(self.propertiesTabLayout)
     self.propertiesTreeView.header().hide()
-    self.graphTab = QtWidgets.QTabWidget()
 
     # Set tab layouts
     self.layoutTab.setLayout(layoutTabLayout)
-
     self.searchTab.setLayout(searchTabLayout)
-    self.graphTab.setLayout(graphTabLayout)
+    self.saveTab.setLayout(saveTabLayout)
 
     # Finally, add tabs to the tab widget
     self.tabWidget.addTab(self.propertiesTab, 'Properties')
     self.tabWidget.addTab(self.searchTab, 'Filter')
     self.tabWidget.addTab(self.layoutTab, 'Layout')
-    self.tabWidget.addTab(self.graphTab, 'Graph')
+    self.tabWidget.addTab(self.saveTab, 'Save')
 
     self.goBackToSearchTab = QtWidgets.QTabWidget()
-    self.tabWidget.addTab(self.goBackToSearchTab, 'Search -->')
+    #self.tabWidget.addTab(self.goBackToSearchTab, 'Search -->')
     self.tabWidget.tabBar().setTabTextColor(4, QtCore.Qt.red)
-    self.tabWidget.currentChanged.connect(self.change_to_search)
+    #self.tabWidget.currentChanged.connect(self.change_to_search)
 
     self.searchVisible = False
 
@@ -275,24 +287,13 @@ class View():
 
     return self.tabWidget # self.tabWidget
 
-  def change_to_search(self, index):
-    print('Called search func: ' + str(index))
-    if index == 4:
-      self.infoLayout.setCurrentIndex(0)
-      self.tabWidget.setCurrentIndex(0)
-
-  def change_to_results(self, index):
-    print('Called results func: ' + str(index))
-
-    if index == 4:
-      self.infoLayout.setCurrentIndex(1)
-      self.propertiesSearchWindow.setCurrentIndex(0)
-  def toggleSearchWindow(self):
-    if self.searchVisible:
-      self.infoLayout.setCurrentIndex(1)
-    else:
-      self.infoLayout.setCurrentIndex(0)
-    self.searchVisible = not self.searchVisible
+  def save_search(self):
+    query = self.app.searchHandler.lastQueryExecuted
+    subList = [self.infoWindowWidgets['saveEdit'].text(), query]
+    self.app.savedSearches.append(subList)
+    cache.save(self.app.savedSearches, 'savedSearches')
+    self.app.initialize_history_table()
+    return
 
   def graph_calma(self, item):
     """
@@ -312,6 +313,7 @@ class View():
       calmaURL = self.tracklistCalma[item.data()]
 
       # Retrieve and set CALMA data
+      print(calmaURL)
       self.calma.set_new_track_calma(calmaURL)
 
       # Create a plot of the CALMA data
@@ -343,6 +345,7 @@ class View():
       except Exception as e:
         print(e)
         return
+
   def change_proportions(self):
     """
     Adjusts the proportions of dialog given to each individual view.

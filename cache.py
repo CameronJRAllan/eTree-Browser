@@ -1,5 +1,4 @@
 import pickle, os
-from pathlib import Path
 
 def save(obj, name):
   dir = os.path.join(os.path.dirname(__file__) + "/cache", name + '.pkl')
@@ -9,5 +8,8 @@ def save(obj, name):
 
 def load(name):
   dir = os.path.join(os.path.dirname(__file__) + "/cache", name + '.pkl')
-  with open(dir, 'rb') as f:
-    return pickle.load(f)
+  try:
+    with open(dir, 'rb') as f:
+      return pickle.load(f)
+  except FileNotFoundError:
+    return None

@@ -3,8 +3,9 @@ import requests
 from urlextract import URLExtract
 import tarfile
 import rdflib
-import pprint
 import urllib.request
+import traceback
+
 class Calma():
   def __init__(self):
     """
@@ -18,11 +19,14 @@ class Calma():
     self.sparql.setMethod("POST")
     self.extractURL = URLExtract()
     self.keyInfo = None
-    # self.get_features_track('http://archive.org/download/CVB2003-02-02.BBCstream-flac16/CVB2003-02-02-BBCstream-t01.flac')
-
+    self.loudnessValues = None
+    self.loudnessInfo = None
 
   def get_features_track(self, trackAudioURL):
+    print('URL : '  + str(trackAudioURL))
     self.keyInfo = None
+    self.loudnessValues = None
+    self.loudnessInfo = None
 
     # http://archive.org/download/dbt2004-05-08.4011s.flac16/dbt2004-05-08d1t02.flac
     # Get parent sub-event for this track
@@ -39,6 +43,7 @@ class Calma():
     if len(subEvent['results']['bindings']) > 0:
       trackURL = self.sparql.query().convert()['results']['bindings'][0]['s']['value']
     else:
+      print('Returning false, not found')
       return False
 
     self.sparql.setQuery("""
@@ -53,22 +58,37 @@ class Calma():
 
     # If no calma data found for this URL
     if len(calmaURL['results']['bindings']) == 0:
+      print('Returning false, not found')
       return False
     else:
-      self.keyInfo = self.get_calma_data(calmaURL['results']['bindings'][0]['o']['value'])
+      self.set_new_track_calma(calmaURL['results']['bindings'][0]['o']['value'])
       return True
 
-  def get_calma_data(self, calmaURL):
-    # If calma data found
+  def set_new_track_calma(self, calmaURL):
+    self.keyInfo = self.get_calma_data(calmaURL, 'key')
+    self.loudnessInfo = self.get_calma_data(calmaURL, 'loudness')
+
+  def get_calma_data(self, calmaURL, feature):
+    if feature == "key":
+      featureURL = "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-keydetector"
+    elif feature == "loudness":
+      featureURL = "http://vamp-plugins.org/rdf/plugins/vamp-libxtract#loudness"
+    else:
+      raise("feature variable / parameter error")
+
     # Get top-level analysis information
     url = calmaURL + '/analyses.ttl'
+
+    # DEBUGGING DURATION
+    self.duration = self.retrieve_duration_from_analyses(url)
+
     r = requests.get(url, stream=True)
     g = rdflib.Graph()
     g.parse(r.raw, format="n3")
 
     # Get blob information for key changes
     for subject, predicate, obj in g:
-      if str(obj) == 'http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-keydetector':
+      if str(obj) == featureURL:
         r = requests.get(str(subject), stream=True)
         g = rdflib.Graph()
         g.parse(r.raw, format="n3")
@@ -77,23 +97,54 @@ class Calma():
             # Get blob contents
             g = rdflib.Graph()
             blobContents = self.extract_zip(obj)
-            g.parse(data=blobContents, format="n3")
 
-            # Extract relevant information in blob
-            eventList = {}
-            for subject in g.subjects():
-              for object in g.objects(subject=subject):
+            if feature == "key":
+              return self.retrieve_key_from_blob(blobContents)
+            elif feature == "loudness":
+              self.retrieve_loudness_from_blob(blobContents)
 
-                # Add to dictionary of events, times and labels
-                if str(subject) not in eventList and 'file://' in str(subject):
-                  eventList[str(subject)] = []
-                if 'file://' in str(subject):
-                  if type(object) == rdflib.term.BNode:
-                    for obj_2 in g.objects(subject=object): eventList[str(subject)].append(str(obj_2))
-                  else:
-                    eventList[str(subject)].append(str(object))
+  def retrieve_key_from_blob(self, blob):
+    g = rdflib.Graph()
+    g.parse(data=blob, format="n3")
 
-            return self.tidy_key_change(eventList)
+    # Extract relevant information in blob
+    eventList = {}
+    for subject in g.subjects():
+      for object in g.objects(subject=subject):
+
+        # Add to dictionary of events, times and labels
+        if str(subject) not in eventList and 'file://' in str(subject):
+          eventList[str(subject)] = []
+        if 'file://' in str(subject):
+          if type(object) == rdflib.term.BNode:
+            for obj_2 in g.objects(subject=object): eventList[str(subject)].append(str(obj_2))
+          else:
+            eventList[str(subject)].append(str(object))
+
+    return self.tidy_key_change(eventList)
+
+  def retrieve_duration_from_analyses(self, analysesURL):
+    analysesURL = requests.get(analysesURL).text
+    analysesURL = analysesURL[analysesURL.find("mo:encodes ")+len("mo:encodes \""):]
+    analysesURL = analysesURL[:analysesURL.find('>')+1:]
+
+    ttl = requests.get(analysesURL).text
+
+    startIndex = ttl.find("tl:duration \"PT")+len("tl:duration \"PT")
+    endIndex = ttl.find("\"^^xsd:duration")+len("\"^^xsd:duration")
+
+    self.duration = ttl[startIndex:endIndex].replace("""S"^^xsd:duration""",'')
+    self.duration = float(self.duration)
+    return self.duration
+
+  def retrieve_loudness_from_blob(self, blob):
+    try:
+      self.loudnessValues = blob[blob.find("af:value \"")+11:-4].strip().split(" ")
+      self.loudnessValues = [float(l) for l in self.loudnessValues]
+      return True
+    except Exception as e:
+      traceback.print_exc()
+      return False
 
   def tidy_key_change(self, dict):
     # Remove duplicates
@@ -123,7 +174,6 @@ class Calma():
 
     # Sort by time
     finalList.sort(key=lambda x: x[0])
-
     return finalList
 
   def get_key_at_time(self, time):

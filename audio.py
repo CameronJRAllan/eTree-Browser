@@ -6,24 +6,48 @@ import qtawesome as qta
 from random import randint
 import sys
 class Audio():
+  """
+  The audio class handles playback of audio links stored within the eTree meta-data set.
+
+  It primarily utilizes FFMPEG to handle the decoding of the audio into a byte-stream,
+  which may then be piped into a PyAudio instance and played to the user, all within a
+  seperate thread from the main application thread loop.
+  """
   def __init__(self, app):
+    """
+    Creates an instance of the Audio class for handling audio-related operations.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    app : instance
+        Main dialog reference.
+    """
+
     self.app = app
     self.isPlaying = False
     self.threadFlag = True
     self.currentUrl = None
-
-    # Set-up volume controls
-    self.app.volumeSlider.setValue(50)
-    self.app.volumeSlider.valueChanged.connect(self.set_volume)
-
-    # Set icons for playback
-    self.app.playPauseBtn.setIcon(qta.icon('fa.play'))
-    self.app.prevBtn.setIcon(qta.icon('fa.step-backward'))
-    self.app.nextBtn.setIcon(qta.icon('fa.step-forward'))
-    self.app.lastfmBtn.setIcon(qta.icon('fa.lastfm'))
-
+    self.hasCalma = False
   def ffmpeg_pipeline(self, url, **kwargs):
-    self.pyAudio = pyaudio.PyAudio()  # PyAudio helps to reproduce raw data in pipe.
+    """
+    Creates an FFMPEG sub-process to handling audio decoding,
+    while emitting relevant meta-data to the main application thread
+    as necessary.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    url : str
+        The URL of the audio link we wish to play.
+    kwargs : {}
+        Dictionary of signals which emit to the main application thread.
+    """
+
+    # Create PyAudio instance
+    self.pyAudio = pyaudio.PyAudio()
 
     # Save URL for future seeking
     self.currentUrl = url
@@ -35,6 +59,7 @@ class Audio():
     duration = subprocess.check_output(['ffprobe', '-i', url, '-show_entries', 'format=duration', '-v', 'quiet',
                                         '-of', 'csv=%s' % ("p=0")])
     duration = str(duration).replace("b'", '').replace("\\n'", '')
+
     kwargs["update_track_duration"].emit(float(duration))
 
     # Create ffMPEG command, options chosen from sub-set of list given by 'ffmpeg -formats'
@@ -64,6 +89,18 @@ class Audio():
       self.start_audio(kwargs['seek'])
 
   def start_audio(self, seek):
+    """
+    Starts the process is reading the sub-process (FFMPEG) audio byte
+    stream into PyAudio for playback.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    seek : int
+        The position we wish to began at (where the start is 0).
+    """
+
     self.isPlaying = True
     self.hasScrobbled = False
     byteCount = 0
@@ -77,6 +114,7 @@ class Audio():
       # 176400 is derived from 16-bit 44100Hz (88200 bytes), multiplied by 2 for stereo
       byteCount += 44100 * 2
       self.update_progress_signal.emit(seek + (byteCount // 176400))
+
       if (byteCount // 176400) > 30 and not self.hasScrobbled:
         self.hasScrobbled = True
         self.scrobble_track.emit()
@@ -100,9 +138,27 @@ class Audio():
     return
 
   def get_url(self):
+    """
+    Returns the currently set URL.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    """
+
     return self.currentUrl
 
   def change_play_state(self):
+    """
+    Either starts of resumes playback of the currently set track URL.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    """
+
     self.pyAudio = None
 
     try:
@@ -115,6 +171,17 @@ class Audio():
       print('self.Stream not set')
 
   def set_volume(self, value):
+    """
+    Sets the volume of the application.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    value : int
+        The value (in range 0 to 100) that we wish to set volume to.
+    """
+
     # If value is valid
     if (value <= 100) and (value >= 0):
 
@@ -126,6 +193,17 @@ class Audio():
       return False
 
   def set_seek(self, seekTime):
+    """
+    Sets the current position we are playing back, in the track.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    seekTime : int
+        The time we wish to seek to.
+    """
+
     if self.currentUrl:
       # Format seek time as HH:MM:SS
       seekTime = time.strftime('%H:%M:%S', time.gmtime(seekTime))
@@ -136,17 +214,45 @@ class Audio():
       return False
 
   def next_click(self):
+    """
+    Goes to the next track.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    """
+
     self.fetch_next_track()
-    # self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
 
   def previous_click(self):
+    """
+    Goes to the previous track.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    """
+
     # Fetch_next_track increments by one, so we decrement by two
     self.playlist_index -= 2
+
     if self.playlist_index < -1 : self.playlist_index = -1
+
     self.fetch_next_track()
-    #self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
 
   def fetch_next_track(self):
+    """
+    Fetches the next track to be played, depending on user preferences for
+    playback behaviour in the queue.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    """
+
     self.kill_audio_thread()
     time.sleep(1)
 
@@ -156,10 +262,12 @@ class Audio():
       else:
         self.playlist_index = 0
     self.app.trackLbl.setText(self.playlist[self.playlist_index][1])
+
     if self.app.repeatCombo.currentText() == 'Shuffle':
       self.playlist_index = randint(0, len(self.playlist))
 
     self.app.trackLbl.setText(self.playlist[self.playlist_index][1])
+
     # Start playing next track in playlist
     self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
 
@@ -176,6 +284,15 @@ class Audio():
     worker.qt_signals.update_track_duration.connect(self.send_duration)
     worker.qt_signals.scrobble_track.connect(self.app.scrobble_track_lastfm)
     self.app.audioThreadpool.start(worker)
+
+  def start_audio_single_link(self, url, seek):
+    self.playlist = [[url, 'placeholder']]
+    self.playlist_index = 0
+    self.app.trackLbl.setText(self.playlist[0][1])
+    self.isPlaying = True
+    self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
+    self.start_audio_thread(url, seek)
+
 
   def update_seekbar(self, timestamp):
     """
@@ -203,7 +320,7 @@ class Audio():
 
     # Add key information if applicable
     if self.hasCalma:
-      lbl = lbl + ' (' + str(self.calmaHandler.get_key_at_time(timestamp)) + ')'
+      lbl = lbl + ' (' + str(self.app.calmaHandler.get_key_at_time(timestamp)) + ')'
 
     # Set time label to new time
     self.app.timeLbl.setText(lbl)
@@ -219,6 +336,19 @@ class Audio():
     self.threadFlag = True
 
   def user_audio_clicked(self, audioList, index):
+    """
+    Starts audio playback when a user clicks on a release, or track.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    audioList : []
+        A list, where each element is a dictionary with information regarding 1 track.
+    index : int
+        The index in the playlist we wish to begin from.
+    """
+
     self.playlist = []
     self.playlist_index = 0
 
@@ -227,13 +357,16 @@ class Audio():
     num = -1
     for track in audioList:
       num += 1
-      self.playlist.append([track['audio']['value'], track['label']['value']])
+      self.playlist.append([track['audio']['value'], track['label']['value'], track['tracklist']['value']])
       if first and num >= index:
         first = False
         self.playlist_index = num
         self.start_audio_thread(track['audio']['value'], 0)
 
-        # self.append_history(track)
+        self.app.append_history_table(track['label']['value'],
+                                      self.app.sparql.get_artist_from_tracklist(track['tracklist']['value']),
+                                      self.app.sparql.get_label_tracklist(track['tracklist']['value']),
+                                      track['audio']['value'])
 
         self.app.trackLbl.setText(track['label']['value'])
 
@@ -243,16 +376,23 @@ class Audio():
         else:
           self.hasCalma = False
 
-          # If adding tracks after to the queue
-          # else:
-          #   if num >= index:
-          #     self.playlist.append([track['audio']['value'], track['label']['value']])
-
     self.isPlaying = True
     self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
     self.app.nowPlayingHandler.update_playlist_view()
 
   def extract_tracklist_single_format(self, tracklist):
+    """
+    Takes an input a tracklist dictionary, and extracts a distinct tracklist
+    relating to a single, user-preferred, format.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    tracklist : dict
+        Dictionary of tracks for a particular release.
+    """
+
     audioList = []
     found = False
     foundFormat = ''
