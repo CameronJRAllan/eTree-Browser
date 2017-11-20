@@ -1,7 +1,0 @@
-maps module
-===========
-
-.. automodule:: maps
-    :members:
-    :undoc-members:
-    :show-inheritance:
