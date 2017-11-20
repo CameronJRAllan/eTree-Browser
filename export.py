@@ -24,6 +24,7 @@ class Export():
       if labels[property['p']['value']] not in normalized:
         normalized[labels[property['p']['value']]] = []
         normalized[labels[property['p']['value']]].append(property['o']['value'])
+
     return normalized
 
   def save_file(self, path, data, dataFormat):
@@ -52,7 +53,7 @@ class Export():
 
     # If 1 or more URLs added
     if len(m3u) > 0:
-      with open(path[0], 'w') as outFile:
+      with open(path[0], 'w+') as outFile:
         # Write header
         outFile.write("#EXTM3U\n")
 
@@ -62,12 +63,12 @@ class Export():
       outFile.close()
 
   def to_csv(self, path, data):
-    data = map(lambda x: self.flatten_for_csv(x, "__"), data)
-
-    columns = [x for row in data for x in row.keys()]
+    #data = map(lambda x: self.flatten_for_csv(x, "__"), data)
+    data = self.flatten_for_csv(data, "___")
+    columns = [row for row in data]
     columns = list(set(columns))
 
-    with open(path, 'wb') as outFile:
+    with open(path, 'w+') as outFile:
       csv_w = csv.writer(outFile)
       csv_w.writerow(columns)
 
@@ -75,12 +76,11 @@ class Export():
         csv_w.writerow(map(lambda x: i_r.get(x, ""), columns))
 
   def to_json(self, path, data):
-    print(path)
-    with open(path[0], 'w') as outFile:
+    with open(path[0], 'w+') as outFile:
       json.dump(data, outFile)
 
   def to_xml(self, path, data):
-    with open(path[0], 'w') as outFile:
+    with open(path[0], 'w+') as outFile:
       outFile.write(data)
 
   def xml_recursive(self, data, padding):

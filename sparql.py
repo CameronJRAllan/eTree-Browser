@@ -1,5 +1,6 @@
 from SPARQLWrapper import SPARQLWrapper, JSON, POSTDIRECTLY
 import datetime
+import urllib
 
 class SPARQL():
   def __init__(self):
@@ -14,30 +15,63 @@ class SPARQL():
     self.sparql.setMethod("POST")
 
   def get_release_properties(self, releaseName):
-    queryGetURI = """
-                    SELECT * {{
-                      ?s ?p "{0}".
-                    }}
-                    """.format(releaseName)
-    self.sparql.setQuery(queryGetURI)
-    queryResults = self.sparql.query().convert()
+    """
+    Retrieves the properties of a given release.
 
-    queryGetProperties = """
-                            SELECT * {{
-                              <{0}> ?p ?o.
-                            }}
-                         """.format(str(queryResults['results']['bindings'][0]['s']['value']))
-    self.sparql.setQuery(queryGetProperties)
-    return self.sparql.query().convert()
+    Parameters
+    ----------
+    releaseName : string
+        Name of the release.
+
+    Returns
+    -------
+    properties : dict
+        The properties found.
+    """
+    try:
+      queryGetURI = """
+                      SELECT * {{
+                        ?s ?p "{0}".
+                      }}
+                      """.format(releaseName)
+      self.sparql.setQuery(queryGetURI)
+      queryResults = self.sparql.query().convert()
+
+      queryGetProperties = """
+                              SELECT * {{
+                                <{0}> ?p ?o.
+                              }}
+                           """.format(str(queryResults['results']['bindings'][0]['s']['value']))
+      self.sparql.setQuery(queryGetProperties)
+      return self.sparql.query().convert()
+    except urllib.error.URLError as e:
+      return e
 
   def get_release_subproperties(self, subject):
+    """
+    Retrieves the sub-properties of a given release.
+
+    Parameters
+    ----------
+    subject : string
+        The release for which we want to retrieve the sub-properties of.
+
+    Returns
+    -------
+    results : dictionary
+        A JSON dictionary of the properties returned.
+    """
     queryGetProperties = """
                             SELECT * {{
                               <{0}> ?p ?o.
                             }}
                          """.format(str(subject))
     self.sparql.setQuery(queryGetProperties)
-    return self.sparql.query().convert()
+    try:
+      return self.sparql.query().convert()
+    except Exception as e:
+      print(e)
+      pass
 
   def get_tracklist(self, label):
     """
@@ -53,7 +87,6 @@ class SPARQL():
     results : dict
         A JSON representation of the results returned by the end-point.
     """
-
     queryString = """
             PREFIX etree:<http://etree.linkedmusic.org/vocab/>
             PREFIX mo:<http://purl.org/ontology/mo/>
@@ -61,7 +94,7 @@ class SPARQL():
             PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
             PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
-              SELECT DISTINCT ?audio ?label ?num {{
+              SELECT DISTINCT ?audio ?label ?num ?tracklist {{
                 ?perf event:hasSubEvent ?tracklist.
                 ?tracklist skos:prefLabel ?label.
                 ?tracklist etree:number ?num.
@@ -70,6 +103,30 @@ class SPARQL():
                 ?perf skos:prefLabel "{0}".
             }} GROUP BY ?label ?audio ?num ORDER BY ?num 
           """.format(label)
+    self.sparql.setQuery(queryString)
+    return self.sparql.query().convert()
+
+  def get_tracklist_grouped(self, label):
+
+    queryString = """
+            PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+            PREFIX mo:<http://purl.org/ontology/mo/>
+            PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
+            PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+            PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX calma: <http://calma.linkedmusic.org/vocab/>
+
+            SELECT DISTINCT (group_concat(distinct ?audio; separator = "\\n") AS ?audio) (group_concat(distinct ?calma; separator = "\\n") AS 
+            ?calma) ?label ?num ?tracklist {{
+              ?perf event:hasSubEvent ?tracklist.
+              ?tracklist skos:prefLabel ?label.
+              ?tracklist etree:number ?num.
+              ?tracklist etree:audio ?audio.
+              ?perf rdf:type mo:Performance.
+              ?perf skos:prefLabel "{0}".
+              OPTIONAL {{?tracklist calma:data ?calma}}.
+            }} ORDER BY ?num 
+            """.format(label)
     self.sparql.setQuery(queryString)
     return self.sparql.query().convert()
 
@@ -137,11 +194,7 @@ class SPARQL():
 
     # Add ending line of query
     queryString += "\n}  GROUP BY (?name)"
-
     # Set and run query
-    print('\n\n')
-    print(queryString)
-    print('\n\n')
     self.sparql.setQuery(queryString)
     return self.sparql.query().convert()
 
@@ -161,14 +214,13 @@ class SPARQL():
     results : dictionary
         A JSON representation of the results returned by the end-point.
     """
-    print(queryString)
     self.sparql.setReturnFormat(JSON)
 
     try:
       self.sparql.setQuery(queryString)
       return self.sparql.query().convert()
-    except Exception:
-      raise ('Error occured')
+    except Exception as e:
+      return e
 
   def date_range(self, start, end):
     """
@@ -195,12 +247,7 @@ class SPARQL():
     delta = endDate - startDate
 
     # If there are days to be filtered
-    if (delta.days > 0):
-    #   return """FILTER (?date > "{0}"^^xsd:dateTime)
-    #             FILTER (?date < "{1}"^^xsd:dateTime)""".format(startDate, endDate)
-    # else:
-    #   return ''
-
+    if (delta.days > 0 and delta.days < 10000):
       dateRange = 'FILTER ('
 
       # Calculate date difference between start + end
@@ -221,7 +268,7 @@ class SPARQL():
     else:
       return ''
 
-  def perform_search(self, dateFrom, dateTo, artists, genres, locations, limit):
+  def perform_search(self, dateFrom, dateTo, artists, genres, locations, limit, trackName, countries, customSearchString, venue, orderBy):
     """
     Executes a basic search on the SPARQL end-point.
 
@@ -263,7 +310,10 @@ class SPARQL():
     artists = artists.split(',')
     genres = genres.split(',')
 
-    fields = " ?label ?performer ?description ?location ?place ?date"
+    artists = [a.strip() for a in artists]
+    genres = [g.strip() for g in genres]
+
+    fields = " ?label ?performer ?description ?location ?place ?date ?genre"
     whereString = """
      ?art skos:prefLabel ?label.
      ?art mo:performer ?performer. 
@@ -272,14 +322,22 @@ class SPARQL():
      ?art event:place ?location.
      ?art etree:date ?date.
      ?location etree:location ?place.
+     ?art event:hasSubEvent ?subEvent
+     OPTIONAL {?performer etree:mbTag ?genre}.
+     OPTIONAL {?subEvent calma:data ?calma}.
      """
 
-    # If custom date range entered (assuming default is 1950-01-01?)
-    if dateFrom != '1950-01-01' or dateTo != '2000-01-01':
-      # Calculate a filter string for this
-      dateString = self.date_range(dateFrom, dateTo)
-    else:
-      dateString = ''
+    # if customConditionType == 'AND':
+    if isinstance(customSearchString, list):
+      customSearchString = "\n".join(item for item in customSearchString)
+    # elif customConditionType == 'OR':
+    #   customSearchString = "\n ||".join(item for item in customSearchString)
+    # else:
+    #   customSearchString = ''
+    # print(customSearchString)
+
+    # Calculate date filters
+    dateString = self.date_range(dateFrom, dateTo)
 
     # If limit is 0
     if (limit == 0):
@@ -288,34 +346,119 @@ class SPARQL():
     else:
       limit = 'LIMIT ' + str(limit)
 
-    # Generate filter
+    # Generate filters for artists, genres, locations
     artistString = self.text_parse(artists, 1)
     genreString = self.text_parse(genres, 2)
-    if len(genreString) > 2:
-      fields = fields + ' ?genre'
-      whereString = whereString + '?performer etree:mbTag ?genre.'
     locationString = self.text_parse(locations, 3)
-    # lineageString = text_parse(lineage, 4)
+    trackString = self.text_parse(trackName, 4)
+    venueString = self.text_parse(venue, 5)
+    countriesString = self.text_parse(countries, 3)
+    orderByString = self.parse_order_by(orderBy)
 
-    q = """PREFIX etree:<http://etree.linkedmusic.org/vocab/>
-          PREFIX mo:<http://purl.org/ontology/mo/>
-          PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
-          PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
-          PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    # Add extra triples if required
+    #if len(genreString) > 2:
+      #fields += ' ?genre'
+      #whereString += '?performer etree:mbTag ?genre.'
+    if len(trackString) > 2:
+      fields += ' ?trackname'
+      whereString += '?track skos:prefLabel ?trackname.'
+    if len(venueString) > 2:
+      fields += ' ?venue'
+      whereString += '?location etree:name ?venue.'
+
+    q = """
+        PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+        PREFIX mo:<http://purl.org/ontology/mo/>
+        PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
+        PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+        PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX calma: <http://calma.linkedmusic.org/vocab/>
         
-          SELECT DISTINCT """ + "?label ?name ?place ?location ?date" \
-          + """  WHERE {    """ \
-          + str(whereString) \
-          + str(artistString) \
-          + str(genreString)   \
-          + str(locationString) \
-          + str(dateString) + """      } """ \
-          + str('GROUP BY ?label') + ' ' \
-          + str(limit)
-    print(q)
+        SELECT DISTINCT ?label ?name ?place ?location ?date (group_concat(distinct ?calma; separator = "\\n") AS ?calma) WHERE {{
+          {0}
+          {1}
+          {2}
+          {3}
+          {4}
+          {5}
+          {6}
+          {7}
+          {8}
+        }}
+        {9}
+        {10}
+        """.format(whereString, artistString, genreString, locationString, venueString, dateString, trackString, customSearchString,
+                   countriesString, orderByString, limit)
     return q
 
-  def text_parse(self, inputList, type):
+  def get_venue_information(self, label):
+    """
+    Retrieves venue information for a particular release.
+
+    Parameters
+    ----------
+    label : string
+        The release for which we want to retrieve the venue info of.
+
+    Returns
+    -------
+    resultsDict : dict
+        A dictionary of a mixture of the GeoNames and LastFM data
+    """
+    self.sparql.setQuery("""
+        PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+        PREFIX mo:<http://purl.org/ontology/mo/>
+        PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
+        PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+        PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX sim: <http://purl.org/ontology/similarity/>
+
+        SELECT DISTINCT ?place ?location ?obj WHERE {{
+                ?art skos:prefLabel "{0}".
+                ?art event:place ?location.
+                ?location sim:subjectOf ?external.
+                ?external sim:object ?obj.
+                ?location etree:location ?place.
+        }} GROUP BY ?place ?location ?obj
+                          """.format(label))
+
+    results = self.sparql.query().convert()
+    resultsDict = {'geoname' : None,
+                   'lastfm' : None}
+
+    for result in results['results']['bindings']:
+      if 'geoname' in result['obj']['value']:
+        resultsDict['geoname'] = result['obj']['value']
+      elif 'last.fm' in result['obj']['value']:
+        resultsDict['lastfm'] = result['obj']['value']
+
+    return resultsDict
+
+  def parse_order_by(self, orderBy):
+    """
+    Generates a filter string for ordering by a give field.
+
+    Parameters
+    ----------
+    orderBy : str
+      The input field.
+
+    Returns
+    -------
+    filterString : string
+        An ORDER-BY string relative to the input field.
+
+    """
+
+    translate = {'Artist' : '?name',
+                 'Label' : '?label',
+                 'Date' : '?date',
+                 'Location' : '?place'
+                  }
+
+    return "ORDER BY {0}".format(translate[orderBy])
+
+  def text_parse(self, inputList, intType):
     """
     Generates filter string for a given list, and type.
 
@@ -327,7 +470,7 @@ class SPARQL():
     inputList : string[]
       A list of filter conditions
 
-    type : str
+    type : int
       The attribute to be filtered
 
     Returns
@@ -336,30 +479,81 @@ class SPARQL():
         A appropriate filter string for the inputs
 
     """
+    # If no data to process, return
+    if inputList == None : return ''
 
     # Determine correct field
-    if type == 1:
-      fieldType = "?name='"
-    elif type == 2:
-      fieldType = "?genre='"
-    elif type == 3:
-      fieldType = "?place='"
-    elif type == 4:
-      fieldType = "?lineage'="
+    if intType == 1:
+      fieldType = """?name=\""""
+    elif intType == 2:
+      fieldType = """?genre=\""""
+    elif intType == 3:
+      fieldType = """?place=\""""
+    elif intType == 4:
+      fieldType = """?trackname=\""""
+    elif intType == 5:
+      fieldType = """?venue=\""""
     else:
       raise ('No matching field type')
 
+    if isinstance(inputList, str):
+      inputList = [inputList]
+
     # Join all possible filter clauses
     temp = " ".join(str(x) for x in inputList)
-    if len(temp) < 3:
-      filterString = ''
+    if len(temp.rstrip()) < 3:
+      return ''
     # If matches requirement for filter string
     else:
+      # Create filter string
       filterString = 'FILTER('
-      for entry in inputList:
-        filterString = "    {0}{1}{2} ||\n".format(filterString, fieldType, entry)
+      for entry in list(set(inputList)):
+        filterString = """    {0}{1}{2}" ||\n""".format(filterString, fieldType, entry.replace('"', '').replace("'",'').rstrip())
       filterString = filterString[:-3].strip()
-      filterString += "')\n"
-
-    print(filterString)
+      filterString += ')\n'
     return filterString
+
+  def get_artist_from_tracklist(self, tracklistURL):
+    """
+    Retrieves the artist from a particular track-list.
+
+    Parameters
+    ----------
+    tracklistURL : string
+        A URL in the tracklist, for which we want to find the performer.
+
+    Returns
+    -------
+    artistName : str
+        The name of the artist found.
+    """
+    name = self.execute_string("""
+          PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+          PREFIX mo:<http://purl.org/ontology/mo/>
+          PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
+          PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+          PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+
+          SELECT DISTINCT ?name WHERE 
+          {{   
+               <{0}> mo:performer ?performer.
+               ?performer foaf:name ?name.
+          }} LIMIT 1
+           """.format(tracklistURL))
+
+    return name['results']['bindings'][0]['name']['value']
+
+  def get_label_tracklist(self, eventurl):
+    label = self.execute_string("""
+                                PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+                                PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+
+                                SELECT DISTINCT ?label WHERE 
+                                {{   
+                                     <{0}> etree:isSubEventOf ?event.
+                                     ?event skos:prefLabel ?label.
+
+                                }} LIMIT 1
+                                 """.format(eventurl))
+
+    return label['results']['bindings'][0]['label']['value']
