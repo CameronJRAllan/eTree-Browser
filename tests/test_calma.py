@@ -36,34 +36,34 @@ class TestCalma(TestCase):
       assert(isinstance(item[0], float))
       assert(isinstance(item[1], str))
 
-  def test_tidy_key_change(self):
-    # Check output type is list
-    outputCorrect = self.calmaInstance.tidy_key_change(dict({
-    'event1' : ['file:///home/cameron/PycharmProjects/Meta-Data/tests/#signal_timeline_0',
-                                                                    'PT57.213968253S',
-                                                                    'http://purl.org/NET/c4dm/timeline.owl#Instant',
-                                                                    'C major',
-                                                                    '1'],
-    'event2' : ['file:///home/cameron/PycharmProjects/Meta-Data/tests/#signal_timeline_0',
-                                                                    '2',
-                                                                    'PT100.218478253S',
-                                                                    'http://purl.org/NET/c4dm/timeline.owl#Instant',
-                                                                    'D minor']
-    }))
-
-    # Check all sub-elements in list have length 2 and have correct type
-    assert(len(outputCorrect) == 2)
-    for item in outputCorrect:
-      assert(isinstance(item, list))
-      assert(len(item) == 2)
-
-    # Check ordering is done correctly
-    assert(outputCorrect[0][1] == 'C major')
-    assert(outputCorrect[1][1] == 'D minor')
-
-    # Check each key has the correct time
-    assert(outputCorrect[0][0] == 57.213968253)
-    assert(outputCorrect[1][0] == 100.218478253)
+  # def test_tidy_key_change(self):
+  #   # Check output type is list
+  #   outputCorrect = self.calmaInstance.tidy_key_change(dict({
+  #   'event1' : ['file:///home/cameron/PycharmProjects/Meta-Data/tests/#signal_timeline_0',
+  #                                                                   'PT57.213968253S',
+  #                                                                   'http://purl.org/NET/c4dm/timeline.owl#Instant',
+  #                                                                   'C major',
+  #                                                                   '1'],
+  #   'event2' : ['file:///home/cameron/PycharmProjects/Meta-Data/tests/#signal_timeline_0',
+  #                                                                   '2',
+  #                                                                   'PT100.218478253S',
+  #                                                                   'http://purl.org/NET/c4dm/timeline.owl#Instant',
+  #                                                                   'D minor']
+  #   }))
+  #
+  #   # Check all sub-elements in list have length 2 and have correct type
+  #   assert(len(outputCorrect) == 2)
+  #   for item in outputCorrect:
+  #     assert(isinstance(item, list))
+  #     assert(len(item) == 2)
+  #
+  #   # Check ordering is done correctly
+  #   assert(outputCorrect[0][1] == 'C major')
+  #   assert(outputCorrect[1][1] == 'D minor')
+  #
+  #   # Check each key has the correct time
+  #   assert(outputCorrect[0][0] == 57.213968253)
+  #   assert(outputCorrect[1][0] == 100.218478253)
 
   def test_get_key_at_time(self):
     # Assert we get None returned when no key change data is set within the class

@@ -9,7 +9,7 @@ class TestCache(TestCase):
 
     try:
       cache.save(dataStruct, 'testSaveStruct')
-      os.remove(os.path.abspath(str(pathlib.Path(__file__).parents[1]) + "/cache/testSaveStruct.pkl"))
+      os.remove(os.path.abspath(str(pathlib.Path(__file__).parents[1]) + "/etreebrowser/cache/testSaveStruct.pkl"))
     except Exception as e:
       self.fail()
 
@@ -21,6 +21,6 @@ class TestCache(TestCase):
     assert(dataStruct == loadedDataStruct)
 
     try:
-      os.remove(os.path.abspath(str(pathlib.Path(__file__).parents[1]) + "/cache/testSaveStruct.pkl"))
+      os.remove(os.path.abspath(str(pathlib.Path(__file__).parents[1]) + "/etreebrowser/cache/testSaveStruct.pkl"))
     except Exception as e:
       self.fail()

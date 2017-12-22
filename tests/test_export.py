@@ -2,33 +2,45 @@ import sys
 sys.path.append("..")
 from unittest import TestCase
 import export
-import pytest
 import sparql
+import application
+import pytest
+from PyQt5 import QtWidgets, QtCore
+import os
 
-class TestExport(TestCase):
+class TestExport():
   @pytest.fixture(scope="function", autouse=True)
-  def setup(self):
-    self.exportInstance = export.Export()
+  def setup(self, qtbot):
+    # Create dialog to show this instance
+    self.dialog = QtWidgets.QMainWindow()
+
+    # Start main event loop
+    self.prog = application.mainWindow(self.dialog)
+
+    # self.prog.exporter
+
     self.file = open('saveFileTest', 'w')
     self.stubInstance = stubExport()
-
   # def test_export_data(self):
   #   self.fail()
 
   def test_normalize_json(self):
-    normalized = self.exportInstance.normalize_json(self.stubInstance.data, self.stubInstance.get_labels())
+    normalized = self.prog.exporter.normalize_json(self.stubInstance.data, self.stubInstance.get_labels())
 
     assert(len(normalized) == 15)
 
     for x in normalized:
       assert(isinstance(normalized[x], list))
 
-  # def test_to_m3u(self):
-  #   self.fail()
-  #
-  # def test_to_csv(self):
-  #   self.fail()
-  #
+  def test_to_csv(self):
+
+    data = self.prog.exporter.normalize_json(self.stubInstance.data, self.stubInstance.get_labels())
+    try:
+      self.prog.exporter.to_csv(('/home/cameron/test.t', None), data)
+    except Exception as e:
+      pytest.fail()
+
+
   # def test_to_json(self):
   #   self.fail()
   #
@@ -36,7 +48,7 @@ class TestExport(TestCase):
   #   self.fail()
 
   def test_xml_recursive(self):
-    xml = self.exportInstance.xml_recursive(self.stubInstance.data, "")
+    xml = self.prog.exporter.xml_recursive(self.stubInstance.data, "")
 
     # Check head in XML
     assert("<head>" in xml and "</head>" in xml)
@@ -62,18 +74,22 @@ class TestExport(TestCase):
                  'data item 3': 'data_4'
                 }
 
-    flattened = self.exportInstance.flatten_for_csv(inputDict, "__")
+    flattened = self.prog.exporter.flatten_for_csv(inputDict, "__")
 
     assert(isinstance(flattened, dict))
 
   def test_to_m3u(self):
-    self.fail()
+    try:
+      data = self.prog.exporter.normalize_json(self.stubInstance.data, self.stubInstance.get_labels())
+      self.prog.exporter.to_m3u(('/home/cameron/test.t', None), data)
+    except Exception as e:
+      print(e)
+      pytest.fail()
 
 class stubExport():
   def __init__(self):
     self.file = open('saveFileTest', 'w')
     self.data = sparql.SPARQL().get_release_properties('3 Dimensional Figures Live at The Red Square on 2008-01-10')
-    print(self.data)
 
   def get_labels(self):
     labels = {'http://www.w3.org/1999/02/22-rdf-syntax-ns#type': 'Type',

@@ -2,9 +2,12 @@ from unittest import TestCase
 import audio
 import alsaaudio
 import pytest
-from PyQt5 import QtCore
-from pytestqt import qtbot
 import sparql
+from PyQt5 import QtWidgets, QtCore
+import application
+import multithreading
+import time
+import qtawesome
 
 class SignalStubs(QtCore.QObject):
   update_track_progress = QtCore.pyqtSignal(int)
@@ -14,18 +17,24 @@ class SignalStubs(QtCore.QObject):
 
   def __init__(self, parent=None):
     super().__init__()
-    self.update_track_progress.connect(self.signal_slot_stub)
+    self.update_track_progress.connect(self.audio_success)
     self.track_finished.connect(self.signal_slot_stub)
     self.update_track_duration.connect(self.signal_slot_stub)
     self.scrobble_track.connect(self.signal_slot_stub)
     self.kwargs = {'update_track_progress': self.update_track_progress,
             'track_finished': self.track_finished,
             'update_track_duration': self.update_track_duration,
-            'seek': 0,
-            'scrobble_track' : self.scrobble_track}
+            'scrobble_track' : self.scrobble_track,
+            'seek' : 0,
+            'test' : True}
+    self.startedPlaying = False
 
   def signal_slot_stub(self):
     return
+
+  def audio_success(self):
+    self.startedPlaying = True
+    print('hit {0}'.format(self.startedPlaying))
 
   def signal_update_progress(self):
     self.hasReadChunk = True
@@ -42,17 +51,18 @@ class ApplicationStub():
     def add_line(self):
       return
 
-class TestAudio(TestCase):
+class TestAudio():
   @pytest.fixture(scope="function", autouse=True)
-  def setup(self):
+  def setup(self, qtbot):
     self.signalStubs = SignalStubs()
     self.applicationStubs = ApplicationStub()
     self.audioInstance = audio.Audio(self.applicationStubs)
 
-  # def test_ffmpeg_pipeline(self):
-  #   # Set-up key-word arguments
-  #   url = 'http://archive.org/download/dbt2004-05-08.4011s.flac16/dbt2004-05-08d1t02.flac'
-  #   self.audioInstance.ffmpeg_pipeline(url, **self.signalStubs.kwargs)
+    # Create dialog to show this instance
+    self.dialog = QtWidgets.QMainWindow()
+
+    # Start main event loop
+    self.prog = application.mainWindow(self.dialog)
 
   def test_get_url(self):
     assert(self.audioInstance.get_url() == None)
@@ -108,3 +118,68 @@ class TestAudio(TestCase):
     tracklist = sparqlHandler.get_tracklist("Mogwai Live at The Forum on 1999-10-16")
     audioList = self.audioInstance.extract_tracklist_single_format(tracklist)
     assert(len(audioList) > 0)
+
+  def test_ffmpeg_pipeline(self):
+    url = "http://archive.org/download/abird1998-05-01/abird1998-05-01t13_vbr.mp3"
+    startTime = time.time()
+
+    self.prog.audioHandler.ffmpeg_pipeline(url, **self.signalStubs.kwargs)
+    # worker = multithreading.WorkerThread(self.prog.audioHandler.ffmpeg_pipeline, url, seek=0)
+    # worker.qt_signals.track_finished.connect(self.signalStubs.signal_slot_stub)
+    # worker.qt_signals.update_track_progress.connect(self.signalStubs.audio_success)
+    # worker.qt_signals.update_track_duration.connect(self.signalStubs.signal_slot_stub)
+    # worker.qt_signals.scrobble_track.connect(self.signalStubs.signal_slot_stub)
+    # self.prog.audioThreadpool.start(worker)
+
+    while (time.time() - startTime < 15):
+      if self.prog.audioHandler.isPlaying == True:
+        self.prog.audioHandler.kill_audio_thread()
+
+    if not self.prog.audioHandler.isPlaying:
+      pytest.fail()
+
+    # How to make it stop after successfully starts playing?
+
+  def test_update_seekbar(self, qtbot):
+    self.prog.audioHandler.duration = 350.00
+    self.prog.audioHandler.update_seekbar(0)
+    assert(self.prog.timeLbl.text() == "0:00 / 5:50")
+
+    self.prog.audioHandler.update_seekbar(60)
+    assert(self.prog.timeLbl.text() == "1:00 / 5:50")
+
+    self.prog.audioHandler.duration = 60
+    self.prog.audioHandler.update_seekbar(20)
+    assert(self.prog.timeLbl.text() == "0:20 / 1:00")
+
+  # def test_start_audio_thread(self):
+  #   pytest.fail()
+
+  def test_get_next_track_index(self):
+    self.prog.audioHandler.playlist_index = 0
+    self.prog.audioHandler.playlist = [['url', 'label'], ['url two', 'label 2']]
+
+    # Repeat all
+    index = self.prog.audioHandler.get_next_track_index()
+    assert(index == 1)
+
+    # Shuffle
+    self.prog.repeatCombo.setCurrentIndex(2)
+    index = self.prog.audioHandler.get_next_track_index()
+    assert(index >= 0)
+    assert(index <= len(self.prog.audioHandler.playlist))
+
+  def test_play_pause(self):
+    self.prog.audioHandler.isPlaying = True
+    self.prog.audioHandler.play_pause()
+    # assert(self.prog.playPauseBtn.icon() == QtGui.QIcon qtawesome.icon('fa.play'))
+    assert(self.prog.audioHandler.isPlaying == False)
+
+    # self.prog.audioHandler.isPlaying = False
+    # self.prog.audioHandler.play_pause()
+    # assert (self.prog.playPauseBtn.icon() == qtawesome.icon('fa.play'))
+
+  def test_start_audio_single_link(self):
+    self.prog.audioHandler.start_audio_single_link("http://url", 0, test=True)
+    assert(self.prog.trackLbl.text() == "Track Name")
+    assert(self.prog.audioHandler.isPlaying == True)

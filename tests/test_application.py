@@ -1,18 +1,14 @@
 import sys
-from unittest import TestCase
 import pytest
 import application
 from PyQt5 import QtWidgets, QtGui, QtCore
 import alsaaudio
 
-app = QtWidgets.QApplication(sys.argv)
-
 # NOTE TO THE READER
 # These tests are designed in mind to be run with Py.Test, the IDE used during programming was PyCharm
-class TestApplication(TestCase):
-
+class TestApplication():
   @pytest.fixture(scope="function", autouse=True)
-  def setup(self):
+  def setup(self, qtbot):
     # Create dialog to show this instance
     self.dialog = QtWidgets.QMainWindow()
 
@@ -55,14 +51,10 @@ class TestApplication(TestCase):
     with pytest.raises(AttributeError):
       self.prog.thread_flag
 
-    self.prog.kill_audio_thread()
-    assert(self.prog.thread_flag == True)
-
   def test_initialize_web_channel(self):
     try:
       self.prog.mapChannel
       self.prog.mapHandler
-      self.prog.homeMapView.page().webChannel()
     except NameError as e:
       self.fail()
 
@@ -77,23 +69,21 @@ class TestApplication(TestCase):
 
     assert(self.prog.debugDialog.isHidden() == False)
 
-  def test_increment_searches_executed(self):
-    prev = self.prog.searchesExecuted
-    self.prog.increment_searches_executed()
-    assert(self.prog.searchesExecuted == prev + 1)
+    # Hide after testing
+    self.prog.debugDialog.hide()
 
   def test_send_duration(self):
-    self.prog.send_duration(0)
+    self.prog.audioHandler.send_duration(0)
     assert(self.prog.trackProgress.maximum() == 0)
-    assert(self.prog.duration == 0)
+    assert(self.prog.audioHandler.duration == 0)
 
-    self.prog.send_duration(25)
+    self.prog.audioHandler.send_duration(25)
     assert(self.prog.trackProgress.maximum() == 25)
-    assert(self.prog.duration == 25)
+    assert(self.prog.audioHandler.duration == 25)
 
-    self.prog.send_duration(156)
+    self.prog.audioHandler.send_duration(156)
     assert(self.prog.trackProgress.maximum() == 156)
-    assert(self.prog.duration == 156)
+    assert(self.prog.audioHandler.duration == 156)
 
   def test_preferred_format_changed(self):
     self.prog.preferred_format_changed('FLAC')
@@ -106,8 +96,8 @@ class TestApplication(TestCase):
     assert(self.prog.formats[0] == 'OGG')
 
   def test_change_type(self):
-    self.prog.change_type(0)
-    assert (self.prog.browseList.model() == self.prog.artistListModel)
+    self.prog.browseListHandler.change_type(0)
+    assert (self.prog.browseList.model() == self.prog.browseListHandler.artistListModel)
 
   def test_auto_comp(self):
     autoComp = self.prog.auto_comp(['Item 1', 'Item 2', 'Item 3'])
@@ -118,8 +108,12 @@ class TestApplication(TestCase):
     clickable = self.prog.clickable(QtWidgets.QWidget())
     assert(isinstance(clickable, QtCore.pyqtBoundSignal))
 
+  def test_quickfilter(self, qtbot):
+    assert (self.prog.treeViewFilter.text() == "")
+    qtbot.keyClicks(self.prog.quickFilter, "Test")
+    assert (self.prog.quickFilter.text() == "Test")
 
-    #
+      #
     # self.prog.change_type(1)
     # assert (self.prog.browseList.model() == self.prog.genreListModel)
     #

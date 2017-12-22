@@ -16,34 +16,34 @@ class TestSPARQL(TestCase):
     validResults = self.sparqlInstance.get_tracklist('Mogwai Live at The Forum on 1999-10-16')
     assert(type(validResults) == type(dict()))
 
-  def test_getArtistReleases(self):
-    # Test that a made up band has no results
-    releasesByName = self.sparqlInstance.get_artist_releases('name', 'A Made up Band Name', '', '')
-    assert(len(releasesByName['results']['bindings']) == 0)
-
-    # Test that a real band has some results returned
-    releasesByName = self.sparqlInstance.get_artist_releases('name', 'Mogwai', '', '')
-    assert(type(releasesByName) == type(dict()))
-    assert(len(releasesByName['results']['bindings']) > 0)
-
-    # Test getting artists matching particular genre:
-    releasesByName = self.sparqlInstance.get_artist_releases('genre', 'folktronica', '?genre', '?performer etree:mbTag ?genre.\n')
-    assert(type(releasesByName) == type(dict()))
-    assert(len(releasesByName['results']['bindings']) > 0)
-
-    releasesByName = self.sparqlInstance.get_artist_releases('name', ['Mogwai', 'Grateful Dead'], '', '')
-    assert(type(releasesByName) == type(dict()))
-    assert(len(releasesByName['results']['bindings']) > 0)
+  # def test_getArtistReleases(self):
+  #   # Test that a made up band has no results
+  #   releasesByName = self.sparqlInstance.get_artist_releases('name', 'A Made up Band Name', '', '')
+  #   assert(len(releasesByName['results']['bindings']) == 0)
+  #
+  #   # Test that a real band has some results returned
+  #   releasesByName = self.sparqlInstance.get_artist_releases('name', 'Mogwai', '', '')
+  #   assert(type(releasesByName) == type(dict()))
+  #   assert(len(releasesByName['results']['bindings']) > 0)
+  #
+  #   # Test getting artists matching particular genre:
+  #   releasesByName = self.sparqlInstance.get_artist_releases('genre', 'folktronica', '?genre', '?performer etree:mbTag ?genre.\n')
+  #   assert(type(releasesByName) == type(dict()))
+  #   assert(len(releasesByName['results']['bindings']) > 0)
+  #
+  #   releasesByName = self.sparqlInstance.get_artist_releases('name', ['Mogwai', 'Grateful Dead'], '', '')
+  #   assert(type(releasesByName) == type(dict()))
+  #   assert(len(releasesByName['results']['bindings']) > 0)
 
   def test_executeString(self):
     assert (isinstance(self.sparqlInstance.execute_string('{{ }}'), Exception))
 
   def test_dateRange(self):
     # Assert a range of 0 gives back an empty string
-    assert(self.sparqlInstance.date_range('2017-01-01', '2017-01-01') == '')
+    assert(self.sparqlInstance.date_range('01-01-2017', '01-01-2017') == '')
 
     # Assert a range of 5 gives an appropriate FILTER string
-    rangeOfFive = self.sparqlInstance.date_range('2017-01-01', '2017-01-06')
+    rangeOfFive = self.sparqlInstance.date_range('01-01-2017', '06-01-2017')
     assert('FILTER' in rangeOfFive)
     assert(str(rangeOfFive).count('str(?date)') == 6)
 
@@ -130,6 +130,9 @@ class TestSPARQL(TestCase):
     validResults = self.sparqlInstance.get_tracklist_grouped('Mogwai Live at The Forum on 1999-10-16')
     assert(type(validResults) == type(dict()))
 
-  # assert(subproperties['results']['bindings'][0]['http://etree.linkedmusic.org/vocab/date']['value'] == "1999-10-16")
-  # def test_performSearch(self):
-  #   self.fail()
+  def test_perform_search(self):
+    #perform_search(self, dateFrom, dateTo, artists, genres, locations, limit, trackName, countries, customSearchString, venue, orderBy):
+
+    query = self.sparqlInstance.perform_search("01-01-1950", '01-01-2017', "Grateful Dead", "", None, 50, "", "", "", "", 'Artist')
+    print(query)
+
