@@ -30,6 +30,7 @@ class Audio():
     self.threadFlag = True
     self.currentUrl = None
     self.hasCalma = False
+
   def ffmpeg_pipeline(self, url, **kwargs):
     """
     Creates an FFMPEG sub-process to handling audio decoding,
@@ -45,6 +46,12 @@ class Audio():
     kwargs : {}
         Dictionary of signals which emit to the main application thread.
     """
+
+    # If testing, set flag
+    if 'test' in kwargs:
+      self.test = True
+    else:
+      self.test = False
 
     # Create PyAudio instance
     self.pyAudio = pyaudio.PyAudio()
@@ -124,6 +131,10 @@ class Audio():
       else:
         # Write to stream
         self.stream.write(raw_audio_chunk)
+
+        # If testing, exit loop
+        if self.test == True:
+          self.threadFlag = False
 
     # Get next track
     self.stream.stop_stream()
@@ -256,43 +267,48 @@ class Audio():
     self.kill_audio_thread()
     time.sleep(1)
 
+    self.playlist_index = self.get_next_track_index()
+
+    self.app.trackLbl.setText(self.playlist[self.playlist_index][1].title())
+
+    # Start playing next track in playlist
+    self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
+
+  def get_next_track_index(self):
     if self.app.repeatCombo.currentText() == 'Repeat All':
       if self.playlist_index <= len(self.playlist) - 1:
         self.playlist_index += 1
       else:
         self.playlist_index = 0
-    self.app.trackLbl.setText(self.playlist[self.playlist_index][1])
 
     if self.app.repeatCombo.currentText() == 'Shuffle':
       self.playlist_index = randint(0, len(self.playlist))
 
-    self.app.trackLbl.setText(self.playlist[self.playlist_index][1])
-
-    # Start playing next track in playlist
-    self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
+    return self.playlist_index
 
   def send_duration(self, duration):
     # Update duration of progress bar
     self.app.trackProgress.setMaximum(duration)
     self.duration = duration
 
-  def start_audio_thread(self, url, seek):
+  def start_audio_thread(self, url, seek, **kwargs):
     self.kill_audio_thread()
     worker = multithreading.WorkerThread(self.app.audioHandler.ffmpeg_pipeline, url, seek=seek)
     worker.qt_signals.track_finished.connect(self.fetch_next_track)
     worker.qt_signals.update_track_progress.connect(self.update_seekbar)
     worker.qt_signals.update_track_duration.connect(self.send_duration)
     worker.qt_signals.scrobble_track.connect(self.app.scrobble_track_lastfm)
-    self.app.audioThreadpool.start(worker)
 
-  def start_audio_single_link(self, url, seek):
-    self.playlist = [[url, 'placeholder']]
+    if 'testing' not in kwargs : self.app.audioThreadpool.start(worker)
+
+  def start_audio_single_link(self, url, seek, **kwargs):
+    self.playlist = [[url, 'Track Name']]
     self.playlist_index = 0
-    self.app.trackLbl.setText(self.playlist[0][1])
+    self.app.trackLbl.setText(self.playlist[0][1].title())
     self.isPlaying = True
     self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
-    self.start_audio_thread(url, seek)
 
+    if 'testing' not in kwargs : self.start_audio_thread(url, seek)
 
   def update_seekbar(self, timestamp):
     """
@@ -368,7 +384,7 @@ class Audio():
                                       self.app.sparql.get_label_tracklist(track['tracklist']['value']),
                                       track['audio']['value'])
 
-        self.app.trackLbl.setText(track['label']['value'])
+        self.app.trackLbl.setText(track['label']['value'].title())
 
         # Check whether calma data available
         if self.app.calmaHandler.get_features_track(track['audio']['value']):

@@ -1,58 +1,52 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-try:
-  import sys
-  sys.path.append("..")
-  import time
-  import os
-  from math import sin, cos, sqrt, atan2, radians
-  from PyQt5 import QtCore, QtWidgets, QtGui, QtMultimedia
-  from UI import UI
-  import sys
-  import lastfm
-  import maps
-  import gi
-  import traceback
-  import json
-  import sparql
-  import re
-  import cache
-  import json
-  import multithreading
-  import audio
-  import requests
-  import calma
-  import export
-  import view
-  import qtawesome as qta
-  from PyQt5.QtWebChannel import QWebChannel
-  from PyQt5.QtWebEngineWidgets import QWebEngineView
-  import hashlib
-except (ImportError, ModuleNotFoundError) as e:
-  print('You are missing package: ' + str(e)[15:])
-  exit(1)
+# try:
+import sys
+sys.path.append("..")
+import time
+import os
+from math import sin, cos, sqrt, atan2, radians, asin
+from PyQt5 import QtCore, QtWidgets, QtGui
+from UI import UI
+import sys
+import lastfm
+import maps
+import traceback
+import sparql
+import cache
+import multithreading
+import audio
+import requests
+import calma
+import export
+import view
+import tutorial
+import qtawesome as qta
+from PyQt5.QtWebChannel import QWebChannel
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+# except (ImportError, ModuleNotFoundError) as e:
+#   print('You are missing package: ' + str(e)[15:])
+#   exit(1)
 
 class mainWindow(UI):
   def __init__(self, dialog):
     UI.__init__(self)
-
     # UI
     self.setupUi(dialog)
     self.set_tooltips()
-    # self.set_window_css()
 
     # Set-up handlers for classes
     self.searchHandler = SearchHandler(self)
     self.audioHandler = audio.Audio(self)
     self.sparql = sparql.SPARQL()
-    self.exporter = export.Export()
+    self.exporter = export.Export(self)
     self.lastfmHandler = lastfm.lastfmAPI('c957283a3dc3401e54b309ee2f18645b', 'f555ab4615197d1583eb2532b502c441')
     self.treeViewHandler = BrowseTreeViewHandler(self)
     self.calmaHandler = calma.Calma()
     self.nowPlayingHandler = NowPlaying(self)
     self.browseTreeProperties = TreePropertiesView(self)
     self.browseListHandler = BrowseListHandler(self)
-
+    self.tutorialHandler = tutorial.Tutorial(self)
     self.childrenFetched = {}
 
     # Set-up volume controls
@@ -70,25 +64,13 @@ class mainWindow(UI):
     self.format_dict = {'FLAC' : '.flac', 'MP3 (64Kbps)' : '.64.mp3', 'SHN' : '.shn', 'WAV' : '.wav', 'OGG' : '.ogg',
                         'MP3 (VBR)' : 'vbr.mp3'}
 
-    self.playlists = [{'name': 'Playlist 1', 'items': QtGui.QStandardItemModel()}]
-
     # Set-up multi-threading pools
     self.threadpool = QtCore.QThreadPool()
     self.audioThreadpool = QtCore.QThreadPool()
 
-    # self.currentDateLabel.setText(str("On this day in history: " + str(time.strftime("%A %dth of %B"))))
-
     # Create map handler and class
-    #self.mapHomeHandler = MapHandler(self, self.homeMapView)
-    #self.homeMapView.loadFinished.connect(self.mapHomeHandler.get_on_this_day)
     self.mapsPath = os.path.join(os.getcwd()) + "/html/map.htm"
-
-    # os.path.join(os.path.dirname(__file__) + "/html/map.htm")
-    #self.homeMapView.setUrl(QtCore.QUrl("file://" + self.mapsPath))
     self.latlng = cache.load('locationLatLng')
-
-    # Initialize playlists
-    #self.initialize_playlists()
 
     # If we already have a session key stored for Last.FM
     if self.lastfmHandler.hasSession() == True:
@@ -124,6 +106,7 @@ class mainWindow(UI):
     self.preferredFormatCombo.currentTextChanged.connect(self.preferred_format_changed)
     self.playlist_view.doubleClicked.connect(self.nowplaying_playlist_clicked)
     self.savedSearchesList.doubleClicked.connect(self.searchHandler.load_saved_search)
+    self.runTutorialBtn.clicked.connect(self.tutorialHandler.start_tutorial)
 
     # Set-up debug dialog
     self.debugDialog = DebugDialog()
@@ -134,9 +117,6 @@ class mainWindow(UI):
 
     # Hide header in tree-vew
     self.browseTreeView.header().close()
-
-    # Initialize map web channel (message passing between JS + Python)
-    #self.initialize_web_channel(self.homeMapView)
 
     # Set-up advanced search signals
     self.addConditionBtn.pressed.connect(self.searchHandler.add_custom_condition)
@@ -171,6 +151,17 @@ class mainWindow(UI):
     self.audioHandler.start_audio_single_link(self.audioHandler.playlist[item.row()][1], 0)
 
   def initialize_web_channel(self, widget):
+    """
+    Initializes a communications channel between Python and JavaScript components.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    widget : QWidget
+        Widget parameter.
+    """
+
     # Set-up web channel between python + JS components
     self.mapChannel = QWebChannel()
     self.mapHandler = CallHandler()
@@ -178,17 +169,56 @@ class mainWindow(UI):
     widget.page().setWebChannel(self.mapChannel)
 
   def preferred_format_changed(self, item):
+    """
+    Changes the user's preferred format for audio streaming.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    item : int
+        Index of the item clicked.
+    """
+
     # Change format to new preferred
     index = self.formats.index(item) # self.format_dict[item]
     self.formats[index], self.formats[0] = self.formats[0], self.formats[index]
     self.debugDialog.add_line('{0}: set new preferred format to {1}'.format(sys._getframe().f_code.co_name, self.formats[0]))
 
   def append_history_table(self, track, artist, label, url):
+    """
+    Sets up the history table, loading from file store, and adding to
+    the table in reverse order.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    track : str
+        Track name.
+    artist : str
+        Artist name.
+    label : str
+        Label (i.e. the performance title).
+    url : str
+        URL of the track.
+    """
+
     self.track_history.append([track, artist, time.strftime('%Y-%m-%d %H:%M:%S'), label, url])
     cache.save(self.track_history, 'play_history')
     self.initialize_history_table()
 
   def initialize_history_table(self):
+    """
+    Sets up the history table, loading from file store, and adding to
+    the table in reverse order.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    """
+
     self.savedSearchesList.clear()
     self.savedSearches = cache.load('savedSearches')
     for item in reversed(self.savedSearches):
@@ -240,22 +270,6 @@ class mainWindow(UI):
       print(e)
       return
 
-  #
-  # def playlist_clicked(self, index):
-  #   for item in self.playlists:
-  #     if item['name'] == index.data():
-  #       items = item['items']
-  #
-  #       # self.selectedPlaylistModel = QtGui.QStandardItemModel(self.playlistTreeView)
-  #       # self.generateModels(items, self.selectedPlaylistModel)
-  #
-  #       # Set our model to the browsing list
-  #       items.appendRow(QtGui.QStandardItem('Test Item'))
-  #       self.playlistTreeView.setModel(items)
-  #       # with open('data/playlists.mmd', 'w') as outfile:
-  #       #   json.dump(self.playlists, outfile)
-  #       print(str(items))
-
   def auto_comp(self, inputList):
     """
     Creates and returns an auto-completer with the input list.
@@ -278,27 +292,9 @@ class mainWindow(UI):
 
     # Create qCompleter instance with input list
     lineEditCompleter = QtWidgets.QCompleter(inputList)
-
+    lineEditCompleter.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
     # Return to be set to the relevant GUI text-box
     return lineEditCompleter
-
-  # def initialize_playlists(self):
-  #   # Create model for our playlist view
-  #   self.playlistModel = QtGui.QStandardItemModel(self.playlistTreeView)
-  #
-  #   # Append each to model
-  #   for playlist in self.playlists:
-  #     item = QtGui.QStandardItem(playlist['name'])
-  #     self.playlistModel.appendRow(item)
-  #
-  #   # Set our list model to our new created model
-  #   self.playlistList.setModel(self.playlistModel)
-  #
-  # def new_playlist(self):
-  #   # self.playlists.append(["New Playlist", []])
-  #
-  #   with open('data/playlists.mmd', 'w') as outfile:
-  #     json.dump(self.playlists, outfile)
 
   def set_tooltips(self):
     """
@@ -364,16 +360,6 @@ class mainWindow(UI):
         exportFormatMenu.addAction('CSV')
         exportFormatMenu.addAction('XML')
         exportFormatMenu.addAction('M3U')
-      # If track
-      elif level == 1:
-        menu.addAction(QtCore.QT_TR_NOOP("Expand Item"))
-        menu.addAction(QtCore.QT_TR_NOOP("Collapse Item"))
-        menu.addAction(QtCore.QT_TR_NOOP("Play All Renditions"))
-        menu.addMenu(exportFormatMenu)
-        exportFormatMenu.addAction('JSON')
-        exportFormatMenu.addAction('CSV')
-        exportFormatMenu.addAction('XML')
-        exportFormatMenu.addAction('M3U')
 
       # Map menu to the view-port
       menu.exec_(self.browseTreeView.viewport().mapToGlobal(pos))
@@ -388,6 +374,7 @@ class mainWindow(UI):
         Class instance.
 
     index : int
+      Index in the tree-view clicked.
     """
 
     contextRow = self.browseTreeView.indexAt(self.menu_on_item)
@@ -398,17 +385,29 @@ class mainWindow(UI):
     elif 'Expand' in index.text():
       self.browseTreeView.setExpanded(contextRow, True)
     elif 'JSON' == index.text():
-      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.get_translation_uri(), 'JSON')
+      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.browseTreeProperties.get_translation_uri(), 'JSON')
     elif 'CSV' == index.text():
-      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.get_translation_uri(), 'CSV')
+      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.browseTreeProperties.get_translation_uri(), 'CSV')
     elif 'XML' == index.text():
-      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.get_translation_uri(), 'XML')
+      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.browseTreeProperties.get_translation_uri(), 'XML')
     elif 'M3U' == index.text():
-      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.get_translation_uri(),  'M3U')
+      self.exporter.export_data(self.sparql.get_release_properties(contextRow.data()), self.browseTreeProperties.get_translation_uri(),  'M3U')
     else:
-      print('No matching menu item')
+      pass
 
   def clickable(self, associatedWidget):
+    """
+    Takes an input a widget, and returned an instance of a inline-defined class (eventFilter),
+    which allows it to become "clickable" with a signal built within the Qt5 slot / signal mechanism.
+
+    Parameters
+    ----------
+    self : instance
+        Class instance.
+    associatedWidget : QtWidget
+      Widget parameter.
+    """
+
     class Filter(QtCore.QObject):
       clickedSignal = QtCore.pyqtSignal()
 
@@ -525,6 +524,8 @@ class BrowseListHandler():
 
           # Move the row to the top of the list
           self.app.browseList.model().insertRow(0, item)
+
+    self.app.browseList.verticalScrollBar().setValue(0)
 
   def browse_link_clicked(self, item):
     """
@@ -651,6 +652,9 @@ class TreePropertiesView(QtWidgets.QTreeView):
   def __init__(self, app):
     super().__init__()
     self.app = app
+    self.setWordWrap(True)
+    self.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+    self.clicked.connect(self.retrieve_properties_subwindow)
     return
 
   def get_translation_uri(self):
@@ -678,7 +682,7 @@ class TreePropertiesView(QtWidgets.QTreeView):
 
     return labels
 
-  def retrieve_properties_subwindow(self, index, model):
+  def retrieve_properties_subwindow(self, index):
     """
     Provides a properties view for a given performance.
 
@@ -693,8 +697,15 @@ class TreePropertiesView(QtWidgets.QTreeView):
     # Get labels dictionary for translation to human-readable formats
     labels = self.get_translation_uri()
 
+    if 'http' not in index.data():
+      return
+
     # Retrieve properties for this release
-    properties = self.sparql.get_release_subproperties(index.data())
+    properties = self.app.sparql.get_release_subproperties(index.data())
+
+    # If no properties retrieved, return
+    if type(properties) == None:
+      return
 
     # Group together attributes again
     for property in properties['results']['bindings']:
@@ -708,7 +719,14 @@ class TreePropertiesView(QtWidgets.QTreeView):
             labelItem = QtGui.QStandardItem(labels[key])
           except KeyError as e:
             labelItem = QtGui.QStandardItem(key)
-          model.itemFromIndex(index).setChild(i, labelItem)
+
+          try:
+            if labels[key] == 'Label':
+              self.model().itemFromIndex(index).setText(treeViewPropertiesDict[key][0])
+            else:
+              self.model().itemFromIndex(index).setChild(i, labelItem)
+          except KeyError as e:
+            pass
           i += 1
 
           # Put children in a tree-esque format
@@ -720,19 +738,14 @@ class TreePropertiesView(QtWidgets.QTreeView):
 
   def retrieve_release_info(self, release):
     properties = self.app.sparql.get_release_properties(release)
-    #self.TreeViewProperties = QtWidgets.QTreeView(self.additionalInfoFrame)
     self.setParent(self.app.additionalInfoFrame)
     self.treePropertiesModel = QtGui.QStandardItemModel(self)
-    self.fill_properties_tree_view(self.treePropertiesModel, properties)
-
-    self.header().hide()
-    self.setFixedHeight(800)
-    self.setFixedWidth(400)
-
-    # Set our model to the browsing list
     self.setModel(self.treePropertiesModel)
-    self.doubleClicked.connect(lambda: self.retrieve_properties_subwindow(self.app.browseTreeView.currentIndex(),  self.treePropertiesModel))
-    self.show()
+    self.fill_properties_tree_view(self.treePropertiesModel, properties)
+    self.header().hide()
+
+    # Return widget
+    return self
 
   def fill_properties_tree_view(self, model, properties):
     labels = self.get_translation_uri()
@@ -765,6 +778,7 @@ class SearchHandler():
     # Create layout for search tab
     self.searchTabWidgetLayout = QtWidgets.QHBoxLayout()
     self.searchTabWidgetLayout.addWidget(self.main.searchTabWidget)
+    # self.searchTabWidgetLayout.addWidget(QtWidgets.QPushButton("Test"))
     self.main.searchTab.setLayout(self.searchTabWidgetLayout)
 
   def load_saved_search(self, index):
@@ -780,9 +794,9 @@ class SearchHandler():
 
     # Create view
     self.view = view.View(self.main, {'results' : {'bindings' : []}}, ['map', 'timeline', 'table'], None, False, self.main.searchTabWidget)
-    self.main.searchTab.layout().takeAt(0)
+    print("Add_Search_Tab_Count: {0}".format(self.main.searchTab.layout().count()))
+    # self.main.searchTab.layout().takeAt(0)
     self.main.searchTab.layout().addWidget(self.view.get_layout())
-
     # self.view.infoWindowWidgets
     # self.view = view.View(self.main, self, ['map', 'timeline', 'table'], self.main.mapHandler.get_on_this_day(), False, self.main.searchTabWidget)
 
@@ -963,23 +977,26 @@ class SearchHandler():
         keyLon = radians(float(keyLon))
 
         # Calculate delta between pairs of lat / lngs
-        deltaLon = keyLat - centerLon
-        deltaLat = keyLon - centerLat
+        deltaLon = keyLon - centerLon
+        deltaLat = keyLat - centerLat
 
         # Perform point-to-point distance calculation
         a = sin(deltaLat / 2) ** 2 + cos(centerLat) * cos(centerLon) * sin(deltaLon / 2) ** 2
-        c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        distance = radius * c
+        try:
+          c = 2 * atan2(sqrt(a), sqrt(1 - a)) # This line causes an error
 
-        # If location is within our distance radius
-        if distance < float(self.main.locationRangeFilter.text()):
-          self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, str(key)
-                                                           + ' by a distance of ' + str(float(self.main.locationRangeFilter.text()) - distance)))
+          distance = radius * c
 
-          # Append all mapped locations for this key to our requested locations
-          for location in value['locations']:
-            locations.append(location)
+          # If location is within our distance radius
+          if distance < float(self.main.locationRangeFilter.text()):
+            # self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, str(key)
+            #                                                  + ' by a distance of ' + str(float(self.main.locationRangeFilter.text()) - distance)))
 
+            # Append all mapped locations for this key to our requested locations
+            for location in value['locations']:
+              locations.append(location)
+        except ValueError as v:
+          pass
       return locations
     # If only 1 location requested
     elif len(self.main.locationFilter.text()) > 0:
@@ -1041,7 +1058,7 @@ class SearchHandler():
 
     # Execute SPARQL query
     results = self.main.sparql.execute_string(query)
-
+    print("Number of results returned: {0}".format(len(results['results']['bindings'])))
     # Collect requested views
     requestedViews = []
     if self.main.mapViewChk.isChecked() : requestedViews.append('map')
@@ -1051,6 +1068,30 @@ class SearchHandler():
     # Create views
     self.setup_views(requestedViews, results)
 
+    # Reset fields
+    self.reset_search_form()
+
+  def reset_search_form(self):
+    # Get contents of text boxes
+    self.main.artistFilter.setText("")
+    self.main.genreFilter.setText("")
+    self.main.trackNameFilter.setText("")
+    self.main.dateFrom.setDate(QtCore.QDate(1950, 1, 1))
+    self.main.dateTo.setDate(QtCore.QDate(2017, 1, 1))
+    self.main.venueFilter.setText("")
+    self.main.locationFilter.setText("")
+    self.main.locationRangeFilter.setText("")
+    self.main.countryFilter.setText("")
+
+    locations = self.generate_mapped_locations()
+    artists = self.main.artistFilter.text()
+    genres = self.main.genreFilter.text().lower()
+    orderBy = self.main.orderByFilter.currentText()
+    limit = self.main.numResultsSpinbox.value()
+    venue = self.main.venueFilter.text()
+    trackName = self.main.trackNameFilter.text()
+
+
   def setup_views(self, requestedViews, results):
     # Check for availability of CALMA data
     if 'calma' in results['head']['vars']:
@@ -1058,7 +1099,7 @@ class SearchHandler():
     else:
       hasCalma = False
 
-    self.view = view.View(prog, self, requestedViews, results, hasCalma, self.main.searchTabWidget)
+    self.view = view.View(self.main, self, requestedViews, results, hasCalma, self.main.searchTabWidget)
     removed = self.main.searchTab.layout().takeAt(0)
     self.main.searchTab.layout().addWidget(self.view.get_layout())
     self.view.infoWidget.setTabEnabled(1, True)
@@ -1066,6 +1107,7 @@ class SearchHandler():
 class BrowseTreeViewHandler():
   def __init__(self, main):
     self.main = main
+    self.main.browseList.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
   def tree_view_filter_update(self):
     """
@@ -1089,6 +1131,8 @@ class BrowseTreeViewHandler():
 
             # Move the row to the top of the list
             self.main.browseTreeView.model().insertRow(0, item)
+
+      self.main.browseTreeView.verticalScrollBar().setValue(0)
     except AttributeError as e:
       # If no model set, return
       return
@@ -1104,26 +1148,31 @@ class BrowseTreeViewHandler():
     index : QModelIndex
         The index in the treeview (i.e. the performance), clicked.
     """
-    if self.main.treeViewModel.itemFromIndex(index).parent() == None:
-      # Get name of selected item
-      tracklist = self.main.sparql.get_tracklist(str(index.data()))
-      preferredFormats = ['FLAC', 'VBR.MP3', 'SHN', 'OGG', 'WAV', '64.MP3']
-      foundFormat = False
-      formatIndex = 0
+    if type(self.main.treeViewModel.itemFromIndex(index)) != None:
+      if self.main.treeViewModel.itemFromIndex(index).parent() == None:
+        # Get name of selected item
+        tracklist = self.main.sparql.get_tracklist(str(index.data()))
+        preferredFormats = ['FLAC', 'VBR.MP3', 'SHN', 'OGG', 'WAV', '64.MP3']
+        foundFormat = False
+        formatIndex = 0
 
-      while foundFormat == False and formatIndex < len(preferredFormats):
-        if self.add_tracks_tree(self.main.formats[formatIndex], tracklist, index) != -1:
-          foundFormat = True
-          self.main.debugDialog.add_line('{0}: found matching format {1}'.format(sys._getframe().f_code.co_name, self.main.formats[formatIndex]))
+        while foundFormat == False and formatIndex < len(preferredFormats):
+          if self.add_tracks_tree(self.main.formats[formatIndex], tracklist, index) != -1:
+            foundFormat = True
+            self.main.debugDialog.add_line('{0}: found matching format {1}'.format(sys._getframe().f_code.co_name, self.main.formats[formatIndex]))
+          else:
+            formatIndex += 1
+        if foundFormat == False:
+          self.main.debugDialog.add_line('{0}: failed to find matching format'.format(sys._getframe().f_code.co_name))
         else:
-          formatIndex += 1
-      if foundFormat == False:
-        self.main.debugDialog.add_line('{0}: failed to find matching format'.format(sys._getframe().f_code.co_name))
-        self.main.debugDialog.add_line('{0}: tracklist for debugging: {1}'.format(sys._getframe().f_code.co_name), tracklist)
-      else:
-        self.main.browseTreeView.setModel(self.main.treeViewModel)
+          self.main.browseTreeView.setModel(self.main.treeViewModel)
 
-      self.main.browseTreeProperties.retrieve_release_info(index.data())
+        self.main.browseTreeView.collapseAll()
+        self.main.browseTreeView.expand(index)
+        self.main.browseTreePropertiesLayout = QtWidgets.QBoxLayout(1)
+        self.main.browseTreePropertiesLayout.setContentsMargins(0,0,0,0)
+        self.main.browseTreePropertiesLayout.addWidget(self.main.browseTreeProperties.retrieve_release_info(index.data()))
+        self.main.additionalInfoFrame.setLayout(self.main.browseTreePropertiesLayout)
 
   def add_tracks_tree(self, extension_type, tracklist, index):
     """
@@ -1181,7 +1230,6 @@ class BrowseTreeViewHandler():
       tracklist = self.main.sparql.get_tracklist(index.data())
       self.main.debugDialog.add_line("{0}: retrieved tracklist for release {1}".format(sys._getframe().f_code.co_name, index.data()))
       self.main.audioHandler.user_audio_clicked(self.main.audioHandler.extract_tracklist_single_format(tracklist), 0)
-
     # If user clicked on a track
     else:
       tracklist = self.main.sparql.get_tracklist(index.parent().data())
@@ -1211,6 +1259,7 @@ class BrowseTreeViewHandler():
 
   def update_tree_view(self, itemText):
     selectedType = self.main.typeBrowseCombo.currentText()
+
     # We do not need any extra triples to get artist information, so final 2 arguments are NULL
     if selectedType == 'Artist':
       modelRawData = self.main.sparql.get_artist_releases('name', itemText, '', '')
@@ -1229,7 +1278,7 @@ class BrowseTreeViewHandler():
       # Add item to our model
       self.main.treeViewModel.appendRow(item)
 
-    # Set our model to the browsing list
+      # Set our model to the browsing list
       self.main.browseTreeView.setModel(self.main.treeViewModel)
 
 class TableHandler():
@@ -1406,30 +1455,33 @@ class TableHandler():
         Class instance.
     """
 
-    # Set final properties for the table
-    self.resultsTable.setVisible(False)
-    self.resultsTable.resizeColumnsToContents()
-    self.resultsTable.setVisible(True)
-    self.resultsTable.setSortingEnabled(True)
-    self.resultsTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-    self.resultsTable.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
-    self.resultsTable.itemDoubleClicked.connect(self.search_table_clicked)
-    self.resultsTable.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+    try:
+      # Set final properties for the table
+      self.resultsTable.setVisible(False)
+      self.resultsTable.resizeColumnsToContents()
+      self.resultsTable.setVisible(True)
+      self.resultsTable.setSortingEnabled(True)
+      self.resultsTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
+      self.resultsTable.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
+      self.resultsTable.itemDoubleClicked.connect(self.search_table_clicked)
+      self.resultsTable.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
 
-    # Add focus signal handlers
-    self.resultsTable.itemClicked.connect(self.prog.searchHandler.view.move_focus)
-    self.resultsTable.verticalScrollBar().valueChanged.connect(self.on_table_scroll)
+      # Add focus signal handlers
+      self.resultsTable.itemClicked.connect(self.prog.searchHandler.view.move_focus)
+      self.resultsTable.verticalScrollBar().valueChanged.connect(self.on_table_scroll)
 
-    # Get first 5 URI replacements
-    self.on_table_scroll(0)
+      # Get first 5 URI replacements
+      self.on_table_scroll(0)
 
-    # Add widget to the data view
-    self.resultsTable.setParent(self.widget)
-    self.layout.addWidget(self.resultsTable, 0, 0, 1, 1)
+      # Add widget to the data view
+      self.resultsTable.setParent(self.widget)
+      self.layout.addWidget(self.resultsTable, 0, 0, 1, 1)
 
-    self.set_location_width()
-    self.prog.debugDialog.add_line("{0}: set final table properties".format(sys._getframe().f_code.co_name))
-    self.widget.show()
+      self.set_location_width()
+      self.prog.debugDialog.add_line("{0}: set final table properties".format(sys._getframe().f_code.co_name))
+      self.widget.show()
+    except RuntimeError as e:
+      return
 
   def search_table_clicked(self, title):
     searchColumn = None
@@ -1531,9 +1583,13 @@ class TableHandler():
   def get_label_for_URI(self, URI):
     label = None
     properties = self.prog.sparql.get_release_subproperties(URI)
-    for property in properties['results']['bindings']:
-      if property['p']['value'] == "http://www.w3.org/2004/02/skos/core#prefLabel":
-        label = property['o']['value']
+
+    try:
+      for property in properties['results']['bindings']:
+        if property['p']['value'] == "http://www.w3.org/2004/02/skos/core#prefLabel":
+          label = property['o']['value']
+    except TypeError as t:
+      pass
 
     if label == None : label = URI
 
@@ -1550,28 +1606,28 @@ class MapHandler():
     self.prog = prog
     self.mapsClass = maps.Maps()
 
-  def get_on_this_day(self):
-    homePageSPARQL = """PREFIX etree:<http://etree.linkedmusic.org/vocab/>
-                        PREFIX mo:<http://purl.org/ontology/mo/>
-                        PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
-                        PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
-                        PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
-                        PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-
-                        SELECT DISTINCT ?performer ?name ?label  ?place  ?date  WHERE 
-                        {    
-                              ?art skos:prefLabel ?label.  
-                              ?art event:place ?location. 
-                              ?location etree:location ?place.
-                              ?performer foaf:name ?name. 
-                              ?art etree:date ?date.
-                              ?art mo:performer ?performer.
-                              FILTER (regex(?date,'""" + time.strftime('-%m-%d') + """',
-                              'i'))
-                        }  GROUP BY (?prefLabel) LIMIT 100"""
-
-    homepageResults = self.prog.sparql.execute_string(homePageSPARQL)
-    return homepageResults
+  # def get_on_this_day(self):
+  #   homePageSPARQL = """PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+  #                       PREFIX mo:<http://purl.org/ontology/mo/>
+  #                       PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
+  #                       PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+  #                       PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
+  #                       PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+  #
+  #                       SELECT DISTINCT ?performer ?name ?label  ?place  ?date  WHERE
+  #                       {
+  #                             ?art skos:prefLabel ?label.
+  #                             ?art event:place ?location.
+  #                             ?location etree:location ?place.
+  #                             ?performer foaf:name ?name.
+  #                             ?art etree:date ?date.
+  #                             ?art mo:performer ?performer.
+  #                             FILTER (regex(?date,'""" + time.strftime('-%m-%d') + """',
+  #                             'i'))
+  #                       }  GROUP BY (?prefLabel) LIMIT 100"""
+  #
+  #   homepageResults = self.prog.sparql.execute_string(homePageSPARQL)
+  #   return homepageResults
 
   def add_search_results_map(self, results):
     if results is not None:
@@ -1651,37 +1707,34 @@ class NowPlaying():
     self.prog.playlist_view.setModel(self.playlistViewModel)
     self.prog.playlist_view.setCurrentIndex(self.playlistViewModel.indexFromItem(toBeSelected))
 
-class TimelineHandler():
-  def __init__(self, webEngine, main):
-    self.main = main
-    self.webEngine = webEngine
-
-  def add_points(self, results):
-    i = 1
-    for result in results['results']['bindings']:
-      self.webEngine.page().runJavaScript("""addPoint(`{0}`,`{1}`,`{2}`)""".format(i, result['label']['value'], result['date']['value']))
-      i += 1
-
-    self.webEngine.page().runJavaScript("""addTimeline()""")
+# class TimelineHandler():
+#   def __init__(self, webEngine, main):
+#     self.main = main
+#     self.webEngine = webEngine
+#
+#   def add_points(self, results):
+#     i = 1
+#     for result in results['results']['bindings']:
+#       self.webEngine.page().runJavaScript("""addPoint(`{0}`,`{1}`,`{2}`)""".format(i, result['label']['value'], result['date']['value']))
+#       i += 1
+#
+#     self.webEngine.page().runJavaScript("""addTimeline()""")
 
 # Python-side call handler for communicating between audio player / map and python
 class CallHandler(QtCore.QObject):
   @QtCore.pyqtSlot(str)
   def mapLinkClicked(self, link):
-    tracklist = sparql.getTracklist(link)
+    tracklist = sparql.get_tracklist(link)
     prog.user_audio_clicked(tracklist, 0)
 
   @QtCore.pyqtSlot(str, str)
   def map_tracklist_popup(self, link, label):
-    print("{0}, {1}".format(link, label))
-
     prog.searchHandler.view.move_focus(label)
     popup = "<bold>{0}</bold><br>".format(label)
 
     # Get venue information for this arg
     geoInfo = prog.sparql.get_venue_information(label)
     if geoInfo['lastfm'] is not None:
-      print(geoInfo['lastfm'])
       popup += geoInfo['lastfm'] # prog.lastfmHandler.get_venue_info(geoInfo['lastfm'])
     else:
       popup += "\n {0}".format("<b> Last.FM data unavailable.")
@@ -1704,6 +1757,7 @@ class CallHandler(QtCore.QObject):
     html += "<a href=geoNamesBounds({0},{1},{2},{3})>View GeoNames bounds</a>".format(json['bbox']['east'], json['bbox']['south'],
                                                                                       json['bbox']['north'], json['bbox']['west'])
     return html
+
 class ErrorDialog(QtWidgets.QErrorMessage):
   def __init__(self, exception):
     super().__init__()
@@ -1719,6 +1773,7 @@ class ErrorDialog(QtWidgets.QErrorMessage):
 if __name__ == '__main__':
   # Create QApplication instance
   app = QtWidgets.QApplication(sys.argv)
+  app.setWindowIcon(QtGui.QIcon(os.path.join(os.getcwd()) + "/img/icon.png"))
 
   # Create dialog to show this instance
   dialog = QtWidgets.QMainWindow()

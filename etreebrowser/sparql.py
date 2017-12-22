@@ -94,13 +94,15 @@ class SPARQL():
             PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
             PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
-              SELECT DISTINCT ?audio ?label ?num ?tracklist {{
+              SELECT DISTINCT ?audio ?label ?num ?tracklist ?name {{
                 ?perf event:hasSubEvent ?tracklist.
                 ?tracklist skos:prefLabel ?label.
                 ?tracklist etree:number ?num.
                 ?tracklist etree:audio ?audio.
                 ?perf rdf:type mo:Performance.
                 ?perf skos:prefLabel "{0}".
+                ?perf mo:performer ?performer.
+                ?performer foaf:name ?name.
             }} GROUP BY ?label ?audio ?num ORDER BY ?num 
           """.format(label)
     self.sparql.setQuery(queryString)
@@ -242,8 +244,8 @@ class SPARQL():
         A structured string that is inserted into the query to provide date filtering.
     """
     # Normalize dates
-    startDate = datetime.datetime.strptime(start, "%Y-%m-%d").date()
-    endDate = datetime.datetime.strptime(end, "%Y-%m-%d").date()
+    startDate = datetime.datetime.strptime(start, "%d-%m-%Y").date()
+    endDate = datetime.datetime.strptime(end, "%d-%m-%Y").date()
     delta = endDate - startDate
 
     # If there are days to be filtered
@@ -389,6 +391,7 @@ class SPARQL():
         {10}
         """.format(whereString, artistString, genreString, locationString, venueString, dateString, trackString, customSearchString,
                    countriesString, orderByString, limit)
+    print(q)
     return q
 
   def get_venue_information(self, label):
@@ -453,6 +456,7 @@ class SPARQL():
     translate = {'Artist' : '?name',
                  'Label' : '?label',
                  'Date' : '?date',
+                 'Genre' : '?genre',
                  'Location' : '?place'
                   }
 
@@ -557,3 +561,18 @@ class SPARQL():
                                  """.format(eventurl))
 
     return label['results']['bindings'][0]['label']['value']
+
+  def get_audio_track(self, trackURI):
+    label = self.execute_string("""
+                                PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+                                PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+
+                                SELECT DISTINCT ?url ?num ?label WHERE 
+                                {{   
+                                     <{0}> etree:audio ?url.
+                                     <{0}> etree:number ?num.
+                                     <{0}> skos:prefLabel ?label.
+                                }}
+                                 """.format(trackURI))
+
+    return label['results']['bindings']

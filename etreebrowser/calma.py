@@ -23,7 +23,6 @@ class Calma():
     self.loudnessInfo = None
 
   def get_features_track(self, trackAudioURL):
-    print('URL : '  + str(trackAudioURL))
     self.keyInfo = None
     self.loudnessValues = None
     self.loudnessInfo = None
@@ -107,35 +106,113 @@ class Calma():
     g = rdflib.Graph()
     g.parse(data=blob, format="n3")
 
-    # Extract relevant information in blob
-    eventList = {}
+    # List of predicates to fetch
+    tripleList = ['event:time', 'rdfs:label']
+    events = []
+
+    # Iterate over subjects
     for subject in g.subjects():
-      for object in g.objects(subject=subject):
+      # If event found
+      if "event" in subject:
+        # Truncate to remove local file reference
+        subject = subject[subject.find("event"):]
+        dictKey = {}
+        for index in tripleList:
+          # Fetch predicate information
+          q = """
+              PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
+              SELECT DISTINCT ?o ?p
+               WHERE {{
+                  :{0} {1} ?o.
+                  OPTIONAL {{?o timeline:at ?p}} .
+               }}""".format(subject, index)
 
-        # Add to dictionary of events, times and labels
-        if str(subject) not in eventList and 'file://' in str(subject):
-          eventList[str(subject)] = []
-        if 'file://' in str(subject):
-          if type(object) == rdflib.term.BNode:
-            for obj_2 in g.objects(subject=object): eventList[str(subject)].append(str(obj_2))
-          else:
-            eventList[str(subject)].append(str(object))
+          qres = g.query(q)
+          for i, e in qres:
+            # If key label found
+            if not e:
+              dictKey['key'] = str(i)
+            # If time reference found
+            else:
+              dictKey['time'] = float(e.replace("S", "").replace("PT", ""))
 
-    return self.tidy_key_change(eventList)
+        sublist = [dictKey['time'], dictKey['key']]
+
+        # Append dict of key info to events list
+        if sublist not in events: events.append(sublist)
+
+    # Sort by time and remove duplicates
+    events.sort(key=lambda sublist: sublist[0])
+
+    return events
+
+    # Extract relevant information in blob
+    # eventList = {}
+    # for subject in g.subjects():
+    #   for object in g.objects(subject=subject):
+    #
+    #     # Add to dictionary of events, times and labels
+    #     if str(subject) not in eventList and 'file://' in str(subject):
+    #       eventList[str(subject)] = []
+    #     if 'file://' in str(subject):
+    #       if type(object) == rdflib.term.BNode:
+    #         for obj_2 in g.objects(subject=object): eventList[str(subject)].append(str(obj_2))
+    #       else:
+    #         eventList[str(subject)].append(str(object))
+    #
+    # return self.tidy_key_change(eventList)
 
   def retrieve_duration_from_analyses(self, analysesURL):
-    analysesURL = requests.get(analysesURL).text
-    analysesURL = analysesURL[analysesURL.find("mo:encodes ")+len("mo:encodes \""):]
-    analysesURL = analysesURL[:analysesURL.find('>')+1:]
+    blob = requests.get(analysesURL).text
+    g = rdflib.Graph()
+    g.parse(data=blob, format="n3")
 
-    ttl = requests.get(analysesURL).text
+    q = """
+        PREFIX mo:<http://purl.org/ontology/mo/>
+        SELECT DISTINCT ?o
+        WHERE {{
+          ?s mo:encodes ?o
+        }}
+        """
 
-    startIndex = ttl.find("tl:duration \"PT")+len("tl:duration \"PT")
-    endIndex = ttl.find("\"^^xsd:duration")+len("\"^^xsd:duration")
+    qres = g.query(q)
 
-    self.duration = ttl[startIndex:endIndex].replace("""S"^^xsd:duration""",'')
-    self.duration = float(self.duration)
-    return self.duration
+    for q in qres:
+
+      url = str(q).replace("(rdflib.term.URIRef('", '').replace("'),)", '')
+
+      # Parse signal TTL file into graph
+      signal = requests.get(url).text
+      g = rdflib.Graph()
+      g.parse(data=signal, format="n3")
+
+      q = """
+        PREFIX mo:<http://purl.org/ontology/mo/>
+        PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
+        SELECT DISTINCT ?p
+        WHERE {{
+          track:signal_0 mo:time ?signal.
+          ?signal timeline:duration ?p.
+        }}
+        """
+
+      qres = g.query(q)
+      for q in qres:
+        q = str(q)
+        return float(q[q.find('PT') + 2:q.find('S')])
+
+        # analysesURL = requests.get(analysesURL).text
+    # analysesURL = analysesURL[analysesURL.find("mo:encodes ")+len("mo:encodes \""):]
+    # analysesURL = analysesURL[:analysesURL.find('>')+1:]
+    #
+    # ttl = requests.get(analysesURL).text
+    #
+    # startIndex = ttl.find("tl:duration \"PT")+len("tl:duration \"PT")
+    # endIndex = ttl.find("\"^^xsd:duration")+len("\"^^xsd:duration")
+    #
+    # self.duration = ttl[startIndex:endIndex].replace("""S"^^xsd:duration""",'')
+    # self.duration = float(self.duration)
+    # return self.duration
 
   def retrieve_loudness_from_blob(self, blob):
     try:
@@ -146,35 +223,35 @@ class Calma():
       traceback.print_exc()
       return False
 
-  def tidy_key_change(self, dict):
-    # Remove duplicates
-    for key in dict.keys():
-      dict[key] = list(set(dict[key]))
-      temp = list(set(dict[key]))
-      temp = [x for x in temp if not '://' in x]
-      dict[key] = temp
-
-    finalList = []
-    # Re-create list using consistent formatting
-    for key in dict.keys():
-      # If sub-list has a length we were expecting
-      if len(dict[key]) == 3:
-        subList = []
-        # For each item in the sub-list
-        for subItem in list(set(dict[key])):
-          # If this is a time of a key change
-          if subItem[:2] == 'PT':
-            subList.insert(0, float(subItem.replace('PT', '').replace('S', '')))
-          # If this is the key change label
-          if 'minor' in subItem or 'major' in subItem:
-            subList.insert(1, subItem)
-        # If correct length
-        if len(subList) == 2:
-          finalList.append(subList)
-
-    # Sort by time
-    finalList.sort(key=lambda x: x[0])
-    return finalList
+  # def tidy_key_change(self, dict):
+  #   # Remove duplicates
+  #   for key in dict.keys():
+  #     dict[key] = list(set(dict[key]))
+  #     temp = list(set(dict[key]))
+  #     temp = [x for x in temp if not '://' in x]
+  #     dict[key] = temp
+  #
+  #   finalList = []
+  #   # Re-create list using consistent formatting
+  #   for key in dict.keys():
+  #     # If sub-list has a length we were expecting
+  #     if len(dict[key]) == 3:
+  #       subList = []
+  #       # For each item in the sub-list
+  #       for subItem in list(set(dict[key])):
+  #         # If this is a time of a key change
+  #         if subItem[:2] == 'PT':
+  #           subList.insert(0, float(subItem.replace('PT', '').replace('S', '')))
+  #         # If this is the key change label
+  #         if 'minor' in subItem or 'major' in subItem:
+  #           subList.insert(1, subItem)
+  #       # If correct length
+  #       if len(subList) == 2:
+  #         finalList.append(subList)
+  #
+  #   # Sort by time
+  #   finalList.sort(key=lambda x: x[0])
+  #   return finalList
 
   def get_key_at_time(self, time):
     if self.keyInfo and time >= 0:

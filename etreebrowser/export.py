@@ -5,7 +5,8 @@ import csv
 import json
 
 class Export():
-  def __init__(self):
+  def __init__(self, app):
+    self.app = app
     return
 
   def export_data(self, data, labels, dataFormat):
@@ -23,7 +24,7 @@ class Export():
     for property in data['results']['bindings']:
       if labels[property['p']['value']] not in normalized:
         normalized[labels[property['p']['value']]] = []
-        normalized[labels[property['p']['value']]].append(property['o']['value'])
+      normalized[labels[property['p']['value']]].append(property['o']['value'])
 
     return normalized
 
@@ -41,12 +42,14 @@ class Export():
     # To store raw M3U data
     m3u = []
 
+    artistName = data['Label'][0].split('Live at')[0]
+
     # For each item in the data
-    for item in data:
+    for item in data['Has Sub Event']:
+      trackData = self.app.sparql.get_audio_track(item)
       # Generate meta-data for M3U
-      meta = {'filename' : item['label'],
-              'tracknumber' : item['number'],
-              'url' : item['url']
+      meta = {'filename' : trackData[0]['label']['value'],
+              'url' : trackData[0]['url']['value']
               }
 
       m3u.append(meta)
@@ -59,7 +62,8 @@ class Export():
 
         # Write individual playlist items
         for item in m3u:
-          outFile.write('#EXTINF{0},{1}'.format(item['tracknumber'],item['url']))
+          outFile.write("#EXTINF:,{0} - {1} \n #EXTVLCOPT:network-caching=1000 \n".format(artistName,item['filename']))
+          outFile.write(item['url'] + '\n')
       outFile.close()
 
   def to_csv(self, path, data):
@@ -68,20 +72,45 @@ class Export():
     columns = [row for row in data]
     columns = list(set(columns))
 
-    with open(path, 'w+') as outFile:
+    with open(path[0], 'w+') as outFile:
       csv_w = csv.writer(outFile)
       csv_w.writerow(columns)
 
       for i_r in data:
-        csv_w.writerow(map(lambda x: i_r.get(x, ""), columns))
+        csv_w.writerow(map(lambda x: data[i_r], columns))
+
+  def flatten_for_csv(self, inputDict, delimiter):
+    # Dict for storing our new, lat dictionary
+    flatDict = {}
+
+    # For each key in the dictionary
+    for i in inputDict.keys():
+      # If sub-dictionary found
+      if isinstance(inputDict[i], dict):
+
+        # Call recursively for level down
+        levelDown = self.flatten_for_csv(inputDict[i], delimiter)
+
+        # Seperate fields with delimiter
+        for e in levelDown.keys():
+          flatDict[i + delimiter + e] = levelDown[e]
+
+      # If not a sub-dictionary
+      else:
+        flatDict[i] = inputDict[i]
+
+    return flatDict
 
   def to_json(self, path, data):
     with open(path[0], 'w+') as outFile:
-      json.dump(data, outFile)
+      json.dump(data, outFile, indent=2)
 
   def to_xml(self, path, data):
     with open(path[0], 'w+') as outFile:
+      outFile.write("""<?xml version="1.0" encoding="UTF-8"?>\n""")
+      outFile.write("""<performance>\n""")
       outFile.write(data)
+      outFile.write("""</performance>\n""")
 
   def xml_recursive(self, data, padding):
     results = []
@@ -106,25 +135,4 @@ class Export():
 
     return "%s%s" % (padding, data)
 
-  def flatten_for_csv(self, inputDict, delimiter):
-    # Dict for storing our new, lat dictionary
-    flatDict = {}
-
-    # For each key in the dictionary
-    for i in inputDict.keys():
-      # If sub-dictionary found
-      if isinstance(inputDict[i], dict):
-
-        # Call recursively for level down
-        levelDown = self.flatten_for_csv(inputDict[i], delimiter)
-
-        # Seperate fields with delimiter
-        for e in levelDown.keys():
-          flatDict[i + delimiter + e] = levelDown[e]
-
-      # If not a sub-dictionary
-      else:
-        flatDict[i] = inputDict[i]
-
-    return flatDict
 

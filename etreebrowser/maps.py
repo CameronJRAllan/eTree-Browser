@@ -1,9 +1,6 @@
-import sys
-from geopy import geocoders, exc
+from geopy import geocoders
 import cache
-from PyQt5 import QtWebEngineWidgets
 global queriesExecuted, geolocator, geoCache
-import time
 class Maps():
   global queriesExecuted
   queriesExecuted = 0
@@ -16,8 +13,6 @@ class Maps():
     kwargs['homepage_start'].emit()
 
     for result in results['results']['bindings']:
-      print("\n\n{0}\n\n".format(result))
-
       if result['place']['value'] is not '':
         # Extract the venue name for geo-coding
         start = ' at '

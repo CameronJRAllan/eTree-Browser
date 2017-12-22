@@ -31,13 +31,11 @@ class View():
     results : float
         The results of the SPARQL query.
     """
-
     self.app = app
     self.search = search
     self.calma = calma.Calma()
     self.hasCalma = hasCalma
     self.searchLayout = searchLayout
-
     # If no results / error occured, log and return
     if isinstance(results, Exception):
       errorDialog = application.ErrorDialog(results)
@@ -46,7 +44,7 @@ class View():
     # Generate components from user check boxes
     for v in views:
       if v == 'map' : self.generate_map(results)
-      if v == 'timeline' : self.generate_plot_view() # generate_timeline(results)
+      if v == 'timeline' : self.generate_plot_view()
       if v == 'table' : self.generate_table(results)
 
     # Generate dialog for user
@@ -131,13 +129,13 @@ class View():
     self.propertiesSearchWindow = self.create_search_properties_window()
     self.infoWidget =  QtWidgets.QTabWidget()
     self.infoWidget.setTabPosition(2)
-    self.infoWidget.addTab(self.searchLayout, 'Search')
+    self.infoWidget.addTab(self.searchLayout, 'Search Form')
     self.infoWidget.addTab(self.propertiesSearchWindow, 'Results')
     self.infoWidget.setTabEnabled(1, False)
 
     # Docked layout (right side)
     self.viewsWidget = QtWidgets.QWidget()
-    self.viewsLayout = QtWidgets.QBoxLayout(2)
+    self.viewsLayout = QtWidgets.QVBoxLayout() # QBoxLayout(2)
 
     # Create a widget for each requested view
     if 'table' in views:
@@ -162,13 +160,15 @@ class View():
     self.dockedLayout = QtWidgets.QHBoxLayout()
     self.dockedLayout.addWidget(self.infoWidget)
     self.dockedLayout.addWidget(self.viewsWidget)
+    self.dockedLayout.setContentsMargins(0, 0, 0, 0)
     self.dockedDialog = QtWidgets.QWidget()
     self.dockedDialog.setWindowTitle("Data View")
-    self.dockedDialog.setMinimumHeight(800)
-    self.dockedDialog.setMinimumWidth(1000)
     self.dockedDialog.setLayout(self.dockedLayout)
     self.dockedLayout.setStretch(0, 2)
     self.dockedLayout.setStretch(1, 8)
+
+    # Set preferred re-size policy
+    # self.mapSearchDialog.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
 
     return self.dockedLayout
   def create_search_properties_window(self):
@@ -207,7 +207,9 @@ class View():
     self.infoWindowWidgets['timelineSpan'].setMaximum(10)
     self.infoWindowWidgets['timelineSpan'].setValue(2)
     self.infoWindowWidgets['timelineSpan'].setSingleStep(1)
+
     layoutTabLayout.addWidget(self.infoWindowWidgets['timelineSpan'], 3, 1)
+    layoutTabLayout.setContentsMargins(0, 0, 0, 0)
 
     self.infoWindowWidgets['tableSpan'].valueChanged.connect(self.change_proportions)
     self.infoWindowWidgets['mapSpan'].valueChanged.connect(self.change_proportions)
@@ -257,7 +259,7 @@ class View():
     self.tracklistWidget.setLayout(self.tracklistLayout)
 
     # Create properties tab layout
-    self.propertiesTreeView = QtWidgets.QTreeView(self.propertiesTab)
+    self.propertiesTreeView = application.TreePropertiesView(self.app) # QtWidgets.QTreeView(self.propertiesTab)
     self.propertiesTabLayout = QtWidgets.QVBoxLayout(self.propertiesTab)
     self.propertiesTabLayout.addWidget(self.propertiesTreeView)
     self.propertiesTabLayout.addWidget(self.tracklistWidget)
@@ -276,9 +278,7 @@ class View():
     self.tabWidget.addTab(self.saveTab, 'Save')
 
     self.goBackToSearchTab = QtWidgets.QTabWidget()
-    #self.tabWidget.addTab(self.goBackToSearchTab, 'Search -->')
     self.tabWidget.tabBar().setTabTextColor(4, QtCore.Qt.red)
-    #self.tabWidget.currentChanged.connect(self.change_to_search)
 
     self.searchVisible = False
 
@@ -331,9 +331,8 @@ class View():
     properties = self.app.sparql.get_release_properties(self.get_label_current_row())
 
     if not isinstance(properties, Exception):
-      self.app.browseTreeProperties.fill_properties_tree_view(self.propertiesTabModel, properties)
+      self.propertiesTreeView.fill_properties_tree_view(self.propertiesTabModel, properties)
       self.propertiesTreeView.setModel(self.propertiesTabModel)
-
   def get_label_current_row(self):
     for c in range(0, self.tableHandler.get_table().columnCount()-1):
       try:
@@ -369,6 +368,11 @@ class View():
     # Map slider
     if (self.infoWindowWidgets['mapSpan'].value() > 0):
       self.viewsLayout.setStretch(1, int(self.infoWindowWidgets['mapSpan'].value()))
+
+    # Force a re-paint of the view
+    self.viewsWidget.update()
+    self.mapSearchDialog.update()
+    self.tableHandler.get_table().update()
 
   def move_focus(self, index):
     # If click was from map or timeline
