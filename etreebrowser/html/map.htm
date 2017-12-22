@@ -148,14 +148,26 @@
         // Add tile layer to map
         L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-        // Add heatmap toggle button for heatmap
-        L.easyButton( 'fa-circle', function(){
-          toggleHeatmapVisible(0)
+        L.easyButton({
+          states: [{
+            stateName: 'toggle-heatmap',
+            icon:      'fa-circle',
+            title:     'Toggle heatmap visibility',
+            onClick: function(btn, map) {
+                toggleHeatmapVisible(0);
+            }
+          }]
         }).addTo(map);
 
-        // Add marker toggle button for heatmap
-        L.easyButton( 'fa-map-marker', function(){
-          toggleMarkersVisible(0)
+        L.easyButton({
+          states: [{
+            stateName: 'toggle-map',
+            icon:      'fa-map-marker',
+            title:     'Toggle marker visibility',
+            onClick: function(btn, map) {
+                toggleMarkersVisible(0);
+            }
+          }]
         }).addTo(map);
 
         // Increment colour index (so that overlapping marker sets have different colours)
