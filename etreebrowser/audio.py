@@ -30,6 +30,7 @@ class Audio():
     self.threadFlag = True
     self.currentUrl = None
     self.hasCalma = False
+    self.userDragging = False
 
   def ffmpeg_pipeline(self, url, **kwargs):
     """
@@ -235,6 +236,7 @@ class Audio():
     """
 
     self.fetch_next_track()
+    self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
 
   def previous_click(self):
     """
@@ -252,6 +254,7 @@ class Audio():
     if self.playlist_index < -1 : self.playlist_index = -1
 
     self.fetch_next_track()
+    self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
 
   def fetch_next_track(self):
     """
@@ -323,7 +326,8 @@ class Audio():
     """
 
     # Calculate minutes and seconds format
-    self.app.trackProgress.setValue(round(float(timestamp)))
+    if not self.userDragging:
+      self.app.trackProgress.setValue(round(float(timestamp)))
     m, s = divmod(round(float(timestamp)), 60)
     dm, ds = divmod(round(float(self.duration)), 60)
 
@@ -370,11 +374,10 @@ class Audio():
 
     # Add to playlist
     first = True
-    num = -1
+    num = 0
     for track in audioList:
-      num += 1
       self.playlist.append([track['audio']['value'], track['label']['value'], track['tracklist']['value']])
-      if first and num >= index:
+      if first:
         first = False
         self.playlist_index = num
         self.start_audio_thread(track['audio']['value'], 0)
@@ -448,6 +451,9 @@ class Audio():
       self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
     self.isPlaying = not self.isPlaying
 
+  def lock_progress_user_drag(self):
+    self.userDragging = True
+
   def track_seek(self):
     """
     Starts a given track at a particular seek time.
@@ -457,5 +463,5 @@ class Audio():
     self : instance
         Class instance.
     """
-
+    self.userDragging = False
     self.start_audio_thread(self.get_url(), self.app.trackProgress.value())

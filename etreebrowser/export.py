@@ -13,6 +13,9 @@ class Export():
     # Present file dialog to user to save
     path = QtWidgets.QFileDialog.getSaveFileName(None, 'Save File', '/home')
 
+    if len(path[0]) < 1:
+      return
+
     # Normalise the JSON
     dataParsed = self.normalize_json(data, labels)
 

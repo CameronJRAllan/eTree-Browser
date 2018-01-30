@@ -10,6 +10,7 @@ class lastfmAPI():
     self.apiKey = apiKey
     self.sharedSecret = sharedSecret
     self.sessionKey = cache.load('last_fm_sessionkey')
+
     # apiKey = 'c957283a3dc3401e54b309ee2f18645b'
     # sharedSecret = 'f555ab4615197d1583eb2532b502c441'
     # sessionKey = '0KZYiiBtaC_JVVlqQ_wAqbFtbIacAJCC'
@@ -23,12 +24,13 @@ class lastfmAPI():
     parameters.append(['timestamp', str(time.time() - 30)])
     parameters.append(['track', track])
     url = self.generate_api_request(parameters, self.sharedSecret)
+
     r = requests.post(url, None)
     if r.status_code != 200:
       raise ValueError(str((r.status_code)))
 
   def hasSession(self):
-    if self.sessionKey:
+    if self.sessionKey and type(self.sessionKey) is not None:
       return True
     else:
       return False
@@ -47,7 +49,6 @@ class lastfmAPI():
 
     url = self.generate_api_request(parameters, self.sharedSecret)
     r = requests.post(url, None)
-    print('Status code: ' + str(r.status_code))
     if r.status_code == 200:
       result = r.json()
       self.token = result['token']
@@ -65,7 +66,6 @@ class lastfmAPI():
     parameters.append(['token', self.token])
     url = self.generate_api_request(parameters, self.sharedSecret)
     r = requests.post(url, None)
-    print(r.text)
 
     if r.status_code == 200:
       root = ET.fromstring(str(r.text))
@@ -122,4 +122,7 @@ class lastfmAPI():
     url = url + 'api_sig=' + hashlib.md5(str(key_value_string + secret).encode('utf-8')).hexdigest()
     return url
 
+  def logout(self):
+    self.sessionKey = None
+    cache.save(self.sessionKey, 'last_fm_sessionkey')
 

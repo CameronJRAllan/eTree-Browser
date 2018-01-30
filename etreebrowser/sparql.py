@@ -173,6 +173,7 @@ class SPARQL():
                 ?performer foaf:name ?name.
                 ?art etree:date ?date.
                 ?art mo:performer ?performer.
+                ?art event:hasSubEvent ?tracklist.
                 {1}
           """.format(sparqlField, sparqlTriple)
 
@@ -391,7 +392,6 @@ class SPARQL():
         {10}
         """.format(whereString, artistString, genreString, locationString, venueString, dateString, trackString, customSearchString,
                    countriesString, orderByString, limit)
-    print(q)
     return q
 
   def get_venue_information(self, label):

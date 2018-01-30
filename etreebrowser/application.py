@@ -5,13 +5,11 @@ import sys
 sys.path.append("..")
 import time
 import os
-from math import sin, cos, sqrt, atan2, radians, asin
 from PyQt5 import QtCore, QtWidgets, QtGui
 from UI import UI
 import sys
 import lastfm
 import maps
-import traceback
 import sparql
 import cache
 import multithreading
@@ -19,11 +17,12 @@ import audio
 import requests
 import calma
 import export
-import view
 import tutorial
 import qtawesome as qta
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtWebEngineWidgets import QWebEngineView
+import search
+
 # except (ImportError, ModuleNotFoundError) as e:
 #   print('You are missing package: ' + str(e)[15:])
 #   exit(1)
@@ -36,7 +35,7 @@ class mainWindow(UI):
     self.set_tooltips()
 
     # Set-up handlers for classes
-    self.searchHandler = SearchHandler(self)
+    self.searchHandler = search.SearchHandler(self)
     self.audioHandler = audio.Audio(self)
     self.sparql = sparql.SPARQL()
     self.exporter = export.Export(self)
@@ -61,7 +60,7 @@ class mainWindow(UI):
 
     # Set-up preferred formats
     self.formats = ['FLAC', 'SHN', 'MP3 (VBR)', 'OGG', 'MP3 (64Kbps)', 'WAV']
-    self.format_dict = {'FLAC' : '.flac', 'MP3 (64Kbps)' : '.64.mp3', 'SHN' : '.shn', 'WAV' : '.wav', 'OGG' : '.ogg',
+    self.formatDict = {'FLAC' : '.flac', 'MP3 (64Kbps)' : '.64.mp3', 'SHN' : '.shn', 'WAV' : '.wav', 'OGG' : '.ogg',
                         'MP3 (VBR)' : 'vbr.mp3'}
 
     # Set-up multi-threading pools
@@ -78,10 +77,12 @@ class mainWindow(UI):
       self.lastfmBtn.setStyleSheet("""QPushButton {
                                       background-color: #BA2024;
                                       }""")
-      self.lastfmStatus.setText("Connected to Last.FM")
+      self.lastfmStatus.setText("Log-out of Last.FM")
+      self.clickable(self.lastfmStatus).connect(self.lastfm_deauthenticate)
     else:
       # Set text to indicate user to connect to Last.FM
       self.lastfmStatus.setText("Connect to Last.FM")
+      self.clickable(self.lastfmStatus).connect(self.check_lastfm_status)
 
     # Create data structure for storing search results
     self.searchResults = []
@@ -89,11 +90,10 @@ class mainWindow(UI):
     self.searchTabElements = []
 
     # Set-up signals for message passing
-    #self.newPlaylistBtn.clicked.connect(self.new_playlist)
+    self.trackProgress.sliderPressed.connect(self.audioHandler.lock_progress_user_drag)
     self.trackProgress.sliderReleased.connect(self.audioHandler.track_seek)
     self.browseTreeView.clicked.connect(self.treeViewHandler.expand_tree_item)
     self.browseTreeView.doubleClicked.connect(self.treeViewHandler.play_tree_item)
-    self.clickable(self.lastfmStatus).connect(self.check_lastfm_status)
     self.clickable(self.playPauseBtn).connect(self.audioHandler.play_pause)
     self.clickable(self.nextBtn).connect(self.audioHandler.next_click)
     self.clickable(self.prevBtn).connect(self.audioHandler.previous_click)
@@ -102,7 +102,6 @@ class mainWindow(UI):
     self.quickFilter.textChanged.connect(self.browseListHandler.quick_filter_update)
     self.treeViewFilter.textChanged.connect(self.treeViewHandler.tree_view_filter_update)
     self.browseList.clicked.connect(self.browseListHandler.browse_link_clicked)
-    self.searchBtn.clicked.connect(self.searchHandler.perform_search)
     self.preferredFormatCombo.currentTextChanged.connect(self.preferred_format_changed)
     self.playlist_view.doubleClicked.connect(self.nowplaying_playlist_clicked)
     self.savedSearchesList.doubleClicked.connect(self.searchHandler.load_saved_search)
@@ -118,16 +117,6 @@ class mainWindow(UI):
     # Hide header in tree-vew
     self.browseTreeView.header().close()
 
-    # Set-up advanced search signals
-    self.addConditionBtn.pressed.connect(self.searchHandler.add_custom_condition)
-    self.removeConditionBtn.pressed.connect(self.searchHandler.remove_custom_condition)
-
-    # Set-up search auto-complete
-    self.artistFilter.setCompleter(self.auto_comp(cache.load('artistList')))
-    self.genreFilter.setCompleter(self.auto_comp(cache.load('genreList')))
-    self.locationFilter.setCompleter(self.auto_comp(cache.load('newReversedGroupedLocations')))
-    self.countryFilter.setCompleter(self.auto_comp(cache.load('countries')))
-
     # Create menu
     self.browseTreeView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
     self.browseTreeView.customContextMenuRequested.connect(self.open_tree_menu)
@@ -136,10 +125,45 @@ class mainWindow(UI):
     # Set our model to the browsing list
     self.browseList.setModel(self.browseListHandler.artistListModel)
 
-    # Create history table
+    # Create history table, and "most played" lists
     self.initialize_history_table()
+    self.initialize_most_played()
 
-    self.searchHandler.add_search_tab_contents()
+    # self.searchHandler.add_search_tab_contents()
+
+    # Set-up now playing table
+    self.nowPlayingHandler.initialize_now_playing()
+
+    self.searchForm = search.searchForm(self)
+
+    if self.historyonLoadChk.isChecked():
+      self.searchForm.generate_on_this_day()
+
+  def initialize_most_played(self):
+    self.mostPlayedReleases = {}
+    self.mostPlayedArtists = {}
+
+    # Iterate through the table
+    for index in range(0, self.historyTableWidget.rowCount()-1):
+      if self.historyTableWidget.item(index, 1).text() in self.mostPlayedArtists.keys():
+        self.mostPlayedArtists[self.historyTableWidget.item(index, 1).text()] += 1
+      else:
+        self.mostPlayedArtists[self.historyTableWidget.item(index, 1).text()] = 1
+
+      if self.historyTableWidget.item(index, 3).text() in self.mostPlayedReleases.keys():
+        self.mostPlayedReleases[self.historyTableWidget.item(index, 3).text()] += 1
+      else:
+        self.mostPlayedReleases[self.historyTableWidget.item(index, 3).text()] = 1
+
+    # Create most played releases
+    self.sortedArtists = sorted(self.mostPlayedArtists.keys(), key=lambda x: self.mostPlayedArtists[x], reverse=True)
+    for a in self.sortedArtists:
+      self.mostPlayedArtistsTbl.addItem("{0} ({1})".format(a, self.mostPlayedArtists[a]))
+
+    # Create most played artists
+    self.sortedReleases = sorted(self.mostPlayedReleases.keys(), key=lambda y: self.mostPlayedReleases[y], reverse=True)
+    for r in self.sortedReleases:
+      self.mostPlayedReleasesTbl.addItem("{0} ({1})".format(r, self.mostPlayedReleases[r]))
 
   def debug_window_state_changed(self, state):
     if state == 2:
@@ -226,7 +250,7 @@ class mainWindow(UI):
 
     self.historyTableWidget.clear()
     self.historyTableWidget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-    self.historyTableWidget.doubleClicked.connect(self.history_table_clicked)
+    # self.historyTableWidget.doubleClicked.connect(self.history_table_clicked)
 
     # Load from file the previous history
     self.track_history = cache.load('play_history')
@@ -373,7 +397,7 @@ class mainWindow(UI):
     self : instance
         Class instance.
 
-    index : int
+    index : ?
       Index in the tree-view clicked.
     """
 
@@ -427,6 +451,12 @@ class mainWindow(UI):
     associatedWidget.installEventFilter(filterOfWidget)
     return filterOfWidget.clickedSignal
 
+  def lastfm_deauthenticate(self):
+    self.lastfmHandler.logout()
+    self.lastfmBtn.setStyleSheet('')
+    self.lastfmStatus.setText("Connect to Last.FM")
+    self.clickable(self.lastfmStatus).connect(self.check_lastfm_status)
+
   def check_lastfm_status(self):
     """
     Checks whether we have an existing Last.FM session, and if not,
@@ -445,9 +475,10 @@ class mainWindow(UI):
       # Create browser dialog for user authentication
       self.browserDialog = QWebEngineView()
       self.browserDialog.setWindowTitle("Connect to Last.FM")
+      self.browserDialog.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
       self.browserDialog.setUrl(QtCore.QUrl("https://last.fm/api/auth/?api_key="
                                             + str(self.lastfmHandler.getAPIKey()) + "&token=" + str(token)))
-      self.browserDialog.urlChanged.connect(self.lastfmHandler.request_session_key)
+      self.browserDialog.destroyed.connect(self.lastfmHandler.request_session_key)
       self.browserDialog.show()
     # If we have a Last.FM session, change button colour to reflect that
     else:
@@ -562,7 +593,7 @@ class BrowseListHandler():
     """
 
     for item in list:
-      item = QtGui.QStandardItem(item.title())
+      item = QtGui.QStandardItem(item)
       model.appendRow(item)
 
   def generate_location_model(self, dict, model):
@@ -697,6 +728,9 @@ class TreePropertiesView(QtWidgets.QTreeView):
     # Get labels dictionary for translation to human-readable formats
     labels = self.get_translation_uri()
 
+    if isinstance(index.data(), type(None)):
+      return
+
     if 'http' not in index.data():
       return
 
@@ -771,338 +805,6 @@ class TreePropertiesView(QtWidgets.QTreeView):
       treeViewPropertiesDict[property['p']['value']].append(property['o']['value'])
     return treeViewPropertiesDict
 
-class SearchHandler():
-  def __init__(self, main):
-    self.main = main
-
-    # Create layout for search tab
-    self.searchTabWidgetLayout = QtWidgets.QHBoxLayout()
-    self.searchTabWidgetLayout.addWidget(self.main.searchTabWidget)
-    # self.searchTabWidgetLayout.addWidget(QtWidgets.QPushButton("Test"))
-    self.main.searchTab.setLayout(self.searchTabWidgetLayout)
-
-  def load_saved_search(self, index):
-    for s in reversed(self.main.savedSearches):
-      if index.data() == s[0]:
-        self.setup_views(['timeline', 'map', 'table'], self.main.sparql.execute_string(s[1]))
-        self.main.topMenuTabs.setCurrentIndex(2)
-        return
-
-  def add_search_tab_contents(self):
-    # Add search there by default
-    self.main.searchTabWidget.hide()
-
-    # Create view
-    self.view = view.View(self.main, {'results' : {'bindings' : []}}, ['map', 'timeline', 'table'], None, False, self.main.searchTabWidget)
-    print("Add_Search_Tab_Count: {0}".format(self.main.searchTab.layout().count()))
-    # self.main.searchTab.layout().takeAt(0)
-    self.main.searchTab.layout().addWidget(self.view.get_layout())
-    # self.view.infoWindowWidgets
-    # self.view = view.View(self.main, self, ['map', 'timeline', 'table'], self.main.mapHandler.get_on_this_day(), False, self.main.searchTabWidget)
-
-  def add_custom_condition(self):
-    # Each custom condition consists of groups of 3 widgets
-    if self.main.advancedSearchLayout.count() == 0:
-      count = 0
-    else:
-      count = self.main.advancedSearchLayout.count() / 3
-
-    # Add to appropriate indexes our new row of widgets
-    self.main.advancedSearchLayout.addWidget(self.generate_field_combo(), count + 1, 1, 1, 2)
-    self.main.advancedSearchLayout.addWidget(self.generate_condition_combo(), count + 1, 2, 1, 2)
-    self.main.advancedSearchLayout.addWidget(QtWidgets.QLineEdit(), count + 1, 3, 1, 2)
-
-    # Add auto-completion where appropriate
-    self.update_auto_complete()
-  def remove_custom_condition(self):
-    # Get 3 last items in the layout and remove them
-    self.main.advancedSearchLayout.itemAt(self.main.advancedSearchLayout.count() - 1).widget().setParent(None)
-    self.main.advancedSearchLayout.itemAt(self.main.advancedSearchLayout.count() - 1).widget().setParent(None)
-    self.main.advancedSearchLayout.itemAt(self.main.advancedSearchLayout.count() - 1).widget().setParent(None)
-
-  def generate_field_combo(self):
-    items = ['Artist', 'Genre', 'Label', 'Location', 'Venue', 'Date']
-    comboBox = QtWidgets.QComboBox()
-    comboBox.addItems(items)
-    comboBox.currentIndexChanged.connect(self.update_auto_complete)
-
-    return comboBox
-
-  def update_auto_complete(self):
-    """
-    Generates auto-complete instances for advanced search conditions.
-    """
-
-    for i in range(0, self.main.advancedSearchLayout.count(), 3):
-      self.main.advancedSearchLayout.itemAt(i + 2).widget().setCompleter(None)
-      widgetText = self.main.advancedSearchLayout.itemAt(i).widget().currentText()
-      textEditWidget = self.main.advancedSearchLayout.itemAt(i + 2).widget()
-
-      if widgetText == 'Artist':
-        textEditWidget.setCompleter(self.main.auto_comp(cache.load('artistList')))
-      elif widgetText == 'Location':
-        textEditWidget.setCompleter(self.main.auto_comp(cache.load('newReversedGroupedLocations')))
-      elif widgetText == 'Genre':
-        textEditWidget.setCompleter(self.main.auto_comp(cache.load('genreList')))
-
-  def generate_condition_combo(self):
-    items = ['is', 'is not', 'starts with', 'ends with', 'contains', 'does not contain', 'matches RegEx', 'does not match RegEx']
-    comboBox = QtWidgets.QComboBox()
-    comboBox.addItems(items)
-    return comboBox
-
-  def generate_advanced_search(self, field, operator, condition):
-    field_to_sparql = {'Artist' : '?name', 'Label' : '?prefLabel', 'Location' : '?place', 'Venue' : '?venue',
-                       'Date' : '?date', 'Genre' : '?genre'}
-
-    filterString = ''
-    if operator == 'is':
-      filterString = """FILTER({0}="{1}") """.format(field_to_sparql[field], condition)
-    elif operator == 'is not':
-      filterString = """FILTER({0}!="{1}") """.format(field_to_sparql[field], condition)
-    elif operator == 'starts with':
-      filterString = """FILTER(STRSTARTS({0},"{1}")) """.format(field_to_sparql[field], condition)
-    elif operator == 'ends with':
-      filterString = """FILTER(STRENDS({0},"{1}")) """.format(field_to_sparql[field], condition)
-    elif operator == 'contains':
-      filterString = """FILTER(CONTAINS({0},"{1}")) """.format(field_to_sparql[field], condition)
-    elif operator == 'does not contain':
-      filterString = """FILTER(!CONTAINS({0},"{1}") """.format(field_to_sparql[field], condition)
-    elif operator == 'matches RegEx':
-      filterString = """FILTER(regex({0}, "{1}", "i")) """.format(field_to_sparql[field], condition)
-    elif operator == 'does not match RegEx':
-      filterString = """FILTER(!regex({0}, "{1}", "i")) """.format(field_to_sparql[field], condition)
-    else:
-      raise('No matching operator')
-
-    return filterString
-
-  def custom_search(self):
-    """
-    Generates search filter queries for advanced queries from the interface.
-    """
-
-    # Get type for these conditions
-    customConditions = []
-    for i in range(0, self.main.advancedSearchLayout.count(), 3):
-      if len(self.main.advancedSearchLayout.itemAt(i + 2).widget().text()) > 0:
-        customConditions.append(self.generate_advanced_search(self.main.advancedSearchLayout.itemAt(i).widget().currentText(),
-                                                              self.main.advancedSearchLayout.itemAt(i + 1).widget().currentText(),
-                                                              self.main.advancedSearchLayout.itemAt(i + 2).widget().text()))
-
-    if 'OR' in self.main.matchingPolicyCombo.currentText():
-      customConditions = self.change_condition_or(customConditions)
-    else:
-      customConditions = self.ensure_matching_parentheses(customConditions)
-
-    return customConditions
-
-  def change_condition_or(self, customConditions):
-    """
-    Adjusts a search FILTER from "ALL" or "OR".
-
-    Parameters
-    ----------
-    customConditions : str[]
-        A list of custom conditions returned by the class instance.
-    """
-
-    for index, item in enumerate(customConditions):
-      if index == 0:
-        newStr = item[:item.rfind(')')]
-        newStr += " ||"
-        customConditions[index] = newStr
-      if index > 0:
-        newStr = item.replace('FILTER(', '')
-        newStr = newStr[:-1]
-        newStr += " ||"
-        customConditions[index] = newStr
-      if index == len(customConditions) - 1:
-        newStr = customConditions[index].replace("||", "")
-        customConditions[index] = newStr
-
-    return customConditions
-
-  def ensure_matching_parentheses(self, customConditions):
-    """
-    Performs validation on SPARQL filter queries to ensure that our query is valid.
-
-    Parameters
-    ----------
-    customConditions : str[]
-        A list of custom conditions returned by the class instance.
-    """
-
-    for index, item in enumerate(customConditions):
-      left = item.count('(')
-      right = item.count(')')
-
-      while right < left:
-        item += ')'
-
-      customConditions[index] = item
-
-    return customConditions
-
-  def generate_mapped_locations(self):
-    """
-    A user may request all performances within a specified radius of a given location.
-
-    We calculate the desired locations using point-to-point distance calculations, relative
-    to the location map keys.
-
-    Parameters
-    ----------
-    countries : str[]
-        A list of performance countries.
-    """
-
-    # If user requested a range
-    if len(self.main.locationRangeFilter.text()) > 0 and len(self.main.locationFilter.text()) > 0:
-      locations = []
-
-      # If p-to-p distance is within our range
-      words = self.main.browseListHandler.locationList[self.main.locationFilter.text()]['latlng'].split()
-      centerLat = radians(float(words[0]))
-      centerLon = radians(float(words[1]))
-      radius = 6373.0
-      filter = ''
-
-      # Find all locations within the range specified by the user
-      for key, value in sorted(self.main.browseListHandler.locationList.items()):
-        keyLat, keyLon = value['latlng'].split(' ')
-
-        # Convert to floats from strings, then convert to radians
-        keyLat = radians(float(keyLat))
-        keyLon = radians(float(keyLon))
-
-        # Calculate delta between pairs of lat / lngs
-        deltaLon = keyLon - centerLon
-        deltaLat = keyLat - centerLat
-
-        # Perform point-to-point distance calculation
-        a = sin(deltaLat / 2) ** 2 + cos(centerLat) * cos(centerLon) * sin(deltaLon / 2) ** 2
-        try:
-          c = 2 * atan2(sqrt(a), sqrt(1 - a)) # This line causes an error
-
-          distance = radius * c
-
-          # If location is within our distance radius
-          if distance < float(self.main.locationRangeFilter.text()):
-            # self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, str(key)
-            #                                                  + ' by a distance of ' + str(float(self.main.locationRangeFilter.text()) - distance)))
-
-            # Append all mapped locations for this key to our requested locations
-            for location in value['locations']:
-              locations.append(location)
-        except ValueError as v:
-          pass
-      return locations
-    # If only 1 location requested
-    elif len(self.main.locationFilter.text()) > 0:
-      # Return all mapped locations
-      return self.main.browseListHandler.locationList[self.main.locationFilter.text()]['locations']
-    else:
-      return None
-
-  def get_mapped_countries(self, countries):
-    """
-    Retrieves locations in a requested country.
-
-    Parameters
-    ----------
-    countries : str[]
-        A list of performance countries.
-    """
-
-    countries = countries.split(',')
-    correspondingLocations = []
-
-    for country in countries:
-      for key in self.main.browseListHandler.locationList.keys():
-        if country.lower() in key.lower():
-          correspondingLocations.append(x for x in self.main.browseListHandler.locationList[key]['locations'])
-
-    # Turn into a flat list of locations
-    correspondingLocations = [item for sublist in correspondingLocations for item in sublist]
-
-    return correspondingLocations
-
-
-  def perform_search(self):
-    # Get contents of text boxes
-    locations = self.generate_mapped_locations()
-    artists = self.main.artistFilter.text()
-    genres = self.main.genreFilter.text().lower()
-    orderBy = self.main.orderByFilter.currentText()
-    limit = self.main.numResultsSpinbox.value()
-    venue = self.main.venueFilter.text()
-    trackName = self.main.trackNameFilter.text()
-
-    if len(self.main.countryFilter.text()) > 0:
-      countries = self.get_mapped_countries(self.main.countryFilter.text())
-    else:
-      countries = ''
-
-    # Custom search conditions
-    if self.main.advancedSearchLayout.count() > 0:
-      customSearchString = self.custom_search()
-    else:
-      customSearchString = ''
-
-    # Generate SPARQL query
-    query = self.main.sparql.perform_search(self.main.dateFrom.text(), self.main.dateTo.text(), artists, genres, locations, limit, trackName,
-                                            countries, customSearchString, venue, orderBy)
-
-    self.lastQueryExecuted = query
-
-    # Execute SPARQL query
-    results = self.main.sparql.execute_string(query)
-    print("Number of results returned: {0}".format(len(results['results']['bindings'])))
-    # Collect requested views
-    requestedViews = []
-    if self.main.mapViewChk.isChecked() : requestedViews.append('map')
-    if self.main.timelineViewChk.isChecked() : requestedViews.append('timeline')
-    if self.main.tableViewChk.isChecked() : requestedViews.append('table')
-
-    # Create views
-    self.setup_views(requestedViews, results)
-
-    # Reset fields
-    self.reset_search_form()
-
-  def reset_search_form(self):
-    # Get contents of text boxes
-    self.main.artistFilter.setText("")
-    self.main.genreFilter.setText("")
-    self.main.trackNameFilter.setText("")
-    self.main.dateFrom.setDate(QtCore.QDate(1950, 1, 1))
-    self.main.dateTo.setDate(QtCore.QDate(2017, 1, 1))
-    self.main.venueFilter.setText("")
-    self.main.locationFilter.setText("")
-    self.main.locationRangeFilter.setText("")
-    self.main.countryFilter.setText("")
-
-    locations = self.generate_mapped_locations()
-    artists = self.main.artistFilter.text()
-    genres = self.main.genreFilter.text().lower()
-    orderBy = self.main.orderByFilter.currentText()
-    limit = self.main.numResultsSpinbox.value()
-    venue = self.main.venueFilter.text()
-    trackName = self.main.trackNameFilter.text()
-
-
-  def setup_views(self, requestedViews, results):
-    # Check for availability of CALMA data
-    if 'calma' in results['head']['vars']:
-      hasCalma = True
-    else:
-      hasCalma = False
-
-    self.view = view.View(self.main, self, requestedViews, results, hasCalma, self.main.searchTabWidget)
-    removed = self.main.searchTab.layout().takeAt(0)
-    self.main.searchTab.layout().addWidget(self.view.get_layout())
-    self.view.infoWidget.setTabEnabled(1, True)
 
 class BrowseTreeViewHandler():
   def __init__(self, main):
@@ -1148,69 +850,32 @@ class BrowseTreeViewHandler():
     index : QModelIndex
         The index in the treeview (i.e. the performance), clicked.
     """
+
+    # If not a child (i.e. a track belonging to a release
     if type(self.main.treeViewModel.itemFromIndex(index)) != None:
       if self.main.treeViewModel.itemFromIndex(index).parent() == None:
-        # Get name of selected item
-        tracklist = self.main.sparql.get_tracklist(str(index.data()))
-        preferredFormats = ['FLAC', 'VBR.MP3', 'SHN', 'OGG', 'WAV', '64.MP3']
-        foundFormat = False
-        formatIndex = 0
+        # Retrieve tracklist from SPARQL end-point
+        tracklist = self.main.sparql.get_tracklist_grouped(str(index.data()))
+        self.currentReleaseData = tracklist['results']['bindings']
+        i = 0
+        for track in tracklist['results']['bindings']:
+          # Add to treeView
+          listItem = QtGui.QStandardItem(str(track['num']['value']) + '. ' + track['label']['value'])
+          self.main.treeViewModel.itemFromIndex(index).setChild(i, listItem)
+          i += 1
 
-        while foundFormat == False and formatIndex < len(preferredFormats):
-          if self.add_tracks_tree(self.main.formats[formatIndex], tracklist, index) != -1:
-            foundFormat = True
-            self.main.debugDialog.add_line('{0}: found matching format {1}'.format(sys._getframe().f_code.co_name, self.main.formats[formatIndex]))
-          else:
-            formatIndex += 1
-        if foundFormat == False:
-          self.main.debugDialog.add_line('{0}: failed to find matching format'.format(sys._getframe().f_code.co_name))
-        else:
-          self.main.browseTreeView.setModel(self.main.treeViewModel)
+          self.main.browseTreeView.collapseAll()
+          self.main.browseTreeView.expand(index)
 
-        self.main.browseTreeView.collapseAll()
-        self.main.browseTreeView.expand(index)
-        self.main.browseTreePropertiesLayout = QtWidgets.QBoxLayout(1)
-        self.main.browseTreePropertiesLayout.setContentsMargins(0,0,0,0)
-        self.main.browseTreePropertiesLayout.addWidget(self.main.browseTreeProperties.retrieve_release_info(index.data()))
-        self.main.additionalInfoFrame.setLayout(self.main.browseTreePropertiesLayout)
+          try:
+            self.main.browseTreePropertiesLayout.takeAt(1)
+          except AttributeError:
+            self.main.browseTreePropertiesLayout = QtWidgets.QBoxLayout(1)
 
-  def add_tracks_tree(self, extension_type, tracklist, index):
-    """
-    Adds a tracklist to the tree view.
+          self.main.browseTreePropertiesLayout.setContentsMargins(0, 0, 0, 0)
+          self.main.browseTreePropertiesLayout.addWidget(self.main.browseTreeProperties.retrieve_release_info(index.data()))
 
-    Parameters
-    ----------
-    self : instance
-        Class instance.
-    extension_type : str
-        The requested format for the audio association.
-    tracklist : dict
-        The tracklist for the performance.
-    index : QModelIndex
-        The index in the treeview (i.e. the performance), clicked.
-    """
-
-    i = 0
-
-    # For each item in tracklist
-    for item in tracklist['results']['bindings']:
-
-      # If desired extension matches a track
-      if item['audio']['value'].lower().endswith(extension_type.lower()):
-
-        # Add to treeView
-        listItem = QtGui.QStandardItem(str(item['num']['value']) + '. ' + item['label']['value'])
-        self.main.treeViewModel.itemFromIndex(index).setChild(i, listItem)
-
-        # Store audio
-        self.main.childrenFetched[listItem.text()] = str(item['audio']['value'])
-        i += 1
-
-    # If no tracks were added (i.e. the format provided failed)
-    if i == 0:
-      return -1
-    else:
-      return 1
+          self.main.additionalInfoFrame.setLayout(self.main.browseTreePropertiesLayout)
 
   def play_tree_item(self, index):
     """
@@ -1232,30 +897,64 @@ class BrowseTreeViewHandler():
       self.main.audioHandler.user_audio_clicked(self.main.audioHandler.extract_tracklist_single_format(tracklist), 0)
     # If user clicked on a track
     else:
-      tracklist = self.main.sparql.get_tracklist(index.parent().data())
-      self.main.debugDialog.add_line("{0}: retrieved tracklist for release {1}".format(sys._getframe().f_code.co_name, index.data()))
-      audio = self.main.childrenFetched[index.data()]
+      trackIndex, prefFormat = self.get_track_index_and_format(index, self.currentReleaseData)
 
-      # Get correct extension
-      audioList = self.main.audioHandler.extract_tracklist_single_format(tracklist)
-      i = 0
-      trackIndex = -1
+      # Extract individual tracks in that format, add to audioList
+      if prefFormat == None:
+        # Add error to debug dialog
+        self.main.debugDialog.add_line("{0}: failed to retrieve matching format for release {1}".format(sys._getframe().f_code.co_name, index.data()))
+        return
+      else:
+        # Generate audio list
+        audioList = self.add_tracks_audiolist(self.currentReleaseData, trackIndex, prefFormat)
 
-      foundIndex = False
-      v = -1
-      for item in audioList:
-        if not foundIndex:
-          v += 1
-          if item['audio']['value'] == audio:
-            trackIndex = v
-            foundIndex = True
+        # Start audio playback
+        self.main.audioHandler.user_audio_clicked(audioList, trackIndex)
+        # Update icons
+        self.main.audioHandler.isPlaying = True
+        self.main.playPauseBtn.setIcon(qta.icon('fa.pause'))
 
-            # Start process of playing audio
-            self.main.audioHandler.user_audio_clicked(audioList, trackIndex)
+  def get_track_index_and_format(self, index, releaseData):
+    # Get all formats available
+    foundFormat = False
+    prefFormat = None
+    trackIndex = 0
 
-    # Update icons
-    self.main.audioHandler.isPlaying = True
-    self.main.playPauseBtn.setIcon(qta.icon('fa.pause'))
+    # Find track to start from
+    for track in releaseData:
+      if track['num']['value'] == index.data()[:1]:
+        trackIndex = int(float(track['num']['value']))
+
+    # Extract formats and choose relative to users preferred choice
+    for url in releaseData[0]['audio']['value'].split('\n'):
+      for format in self.main.formats:
+        if not foundFormat:
+          if self.main.formatDict[format] in url:
+            # Found valid format
+            foundFormat = True
+            prefFormat = self.main.formatDict[format]
+
+    return trackIndex, prefFormat
+
+  def add_tracks_audiolist(self, releaseData, trackIndex, prefFormat):
+    audioList = []
+    print(("{0}, {1}").format(trackIndex, prefFormat))
+    for track in releaseData:
+      if int(float(track['num']['value'])) >= trackIndex:
+        prefUrl = None
+
+        # Get url
+        for url in track['audio']['value'].split('\n'):
+          if prefFormat in url[-10:]:
+            prefUrl = url
+
+            # Add to audio list
+            audioList.append(track)
+            audioList[-1]['audio']['value'] = prefUrl
+      else:
+        print('skipped {0}'.format(track['label']['value']))
+
+    return audioList
 
   def update_tree_view(self, itemText):
     selectedType = self.main.typeBrowseCombo.currentText()
@@ -1439,7 +1138,7 @@ class TableHandler():
     # Set header properties
     header = self.resultsTable.horizontalHeader()
     header.setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
-    header.setStretchLastSection(True)
+    # header.setStretchLastSection(True)
     vHeader = self.resultsTable.verticalHeader()
     vHeader.setVisible(False)
 
@@ -1457,18 +1156,21 @@ class TableHandler():
 
     try:
       # Set final properties for the table
-      self.resultsTable.setVisible(False)
+      # self.resultsTable.setVisible(False)
       self.resultsTable.resizeColumnsToContents()
-      self.resultsTable.setVisible(True)
+      # self.resultsTable.setVisible(True)
       self.resultsTable.setSortingEnabled(True)
       self.resultsTable.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
       self.resultsTable.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContentsOnFirstShow)
-      self.resultsTable.itemDoubleClicked.connect(self.search_table_clicked)
+      self.resultsTable.setMinimumHeight(100)
       self.resultsTable.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+      self.resultsTable.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+      self.layout.setContentsMargins(0,0,0,11)
 
       # Add focus signal handlers
       self.resultsTable.itemClicked.connect(self.prog.searchHandler.view.move_focus)
       self.resultsTable.verticalScrollBar().valueChanged.connect(self.on_table_scroll)
+      self.resultsTable.itemDoubleClicked.connect(self.search_table_clicked)
 
       # Get first 5 URI replacements
       self.on_table_scroll(0)
@@ -1476,11 +1178,15 @@ class TableHandler():
       # Add widget to the data view
       self.resultsTable.setParent(self.widget)
       self.layout.addWidget(self.resultsTable, 0, 0, 1, 1)
-
-      self.set_location_width()
-      self.prog.debugDialog.add_line("{0}: set final table properties".format(sys._getframe().f_code.co_name))
+      self.resultsTable.setVisible(False)
+      self.resultsTable.resizeColumnsToContents()
+      self.resultsTable.setVisible(True)
       self.widget.show()
+
+      # self.set_location_width()
+      self.prog.debugDialog.add_line("{0}: set final table properties".format(sys._getframe().f_code.co_name))
     except RuntimeError as e:
+      print(e)
       return
 
   def search_table_clicked(self, title):
@@ -1494,7 +1200,6 @@ class TableHandler():
 
   def change_focus(self, index):
     searchColumn = None
-
     try:
       # Add line to debug dialog
       self.prog.debugDialog.add_line("{0}: moving focus to index {1}".format(sys._getframe().f_code.co_name, index))
@@ -1507,7 +1212,7 @@ class TableHandler():
       else:
         # Find label column in table
         for c in range(0, self.resultsTable.columnCount() - 1):
-          if self.resultsTable.horizontalHeaderItem(c).text() == 'Label':
+          if self.resultsTable.horizontalHeaderItem(c).text() == 'Performance Title':
             searchColumn = c
 
         if searchColumn is not None:
@@ -1707,6 +1412,12 @@ class NowPlaying():
     self.prog.playlist_view.setModel(self.playlistViewModel)
     self.prog.playlist_view.setCurrentIndex(self.playlistViewModel.indexFromItem(toBeSelected))
 
+  def initialize_now_playing(self):
+    return
+    # self.now_playing_layout = QtWidgets.QHBoxLayout(self.prog.nowPlayingTab)
+    # self.now_playing_layout.addWidget(self.prog.playlist_view)
+    # self.prog.nowPlayingTab.setLayout(self.now_playing_layout)
+
 # class TimelineHandler():
 #   def __init__(self, webEngine, main):
 #     self.main = main
@@ -1729,6 +1440,7 @@ class CallHandler(QtCore.QObject):
 
   @QtCore.pyqtSlot(str, str)
   def map_tracklist_popup(self, link, label):
+
     prog.searchHandler.view.move_focus(label)
     popup = "<bold>{0}</bold><br>".format(label)
 
@@ -1762,12 +1474,12 @@ class ErrorDialog(QtWidgets.QErrorMessage):
   def __init__(self, exception):
     super().__init__()
     if type(exception).__name__ == 'HTTPError':
-      message = 'A HTTP error occurred, this could be due to the SPARQL end-point being unavailable'
+      self.message = 'A HTTP error occurred, this could be due to the SPARQL end-point being unavailable'
     else:
       print('Error dialog recieved non-mapped error: {0}'.format(type(exception).__name__))
-      message = str(Exception)
+      self.message = str(Exception)
     self.setWindowTitle('Error')
-    self.showMessage(message)
+    self.showMessage(self.message)
     self.show()
 
 if __name__ == '__main__':

@@ -2,16 +2,17 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 import os
 import application
-import multithreading
 import calma
 import graph
 import cache
+import sys
+import datetime
 
 class View():
   """
   This class defines a data view of a SPARQL query search.
   """
-  def __init__(self, app, search, views, results, hasCalma, searchLayout):
+  def __init__(self, app, search, views, results, hasCalma):
     """
     Create an instance of the View class.
 
@@ -35,7 +36,8 @@ class View():
     self.search = search
     self.calma = calma.Calma()
     self.hasCalma = hasCalma
-    self.searchLayout = searchLayout
+    self.views = views
+
     # If no results / error occured, log and return
     if isinstance(results, Exception):
       errorDialog = application.ErrorDialog(results)
@@ -47,14 +49,57 @@ class View():
       if v == 'timeline' : self.generate_plot_view()
       if v == 'table' : self.generate_table(results)
 
-    # Generate dialog for user
-    self.create_layouts(views)
+    self.viewLayout = QtWidgets.QVBoxLayout()
 
-  def get_layout(self):
+    # Check seperately to ensure added in 'correct' order
+    if 'today in history' in views: self.add_history_label_view()
+    if 'table' in views: self.viewLayout.addWidget(self.tableHandler.get_table_container())
+    if 'map' in views: self.viewLayout.addWidget(self.mapSearchDialog)
+    if 'timeline' in views: self.viewLayout.addWidget(self.calmaGraphView)
+
+    if self.viewLayout.count() == 2:
+      self.viewLayout.setStretch(0, 5)
+      self.viewLayout.setStretch(1, 5)
+    if self.viewLayout.count() == 3:
+      self.viewLayout.setStretch(0, 2)
+      self.viewLayout.setStretch(1, 6)
+      self.viewLayout.setStretch(2, 2)
+    if self.viewLayout.count() == 4:
+      self.viewLayout.setStretch(0, 1)
+      self.viewLayout.setStretch(1, 4)
+      self.viewLayout.setStretch(2, 10)
+      self.viewLayout.setStretch(3, 4)
+
+    self.viewWidget = QtWidgets.QWidget()
+    self.viewWidget.setLayout(self.viewLayout)
+
+    # Setup signals post-view creation
+    self.app.searchForm.infoWindowWidgets['searchButton'].clicked.connect(self.search_table)
+    self.app.searchForm.infoWindowWidgets['savePlotButton'].clicked.connect(self.save_calma_plot)
+    self.app.searchForm.infoWindowWidgets['saveButton'].clicked.connect(self.save_search)
+    self.app.searchForm.tracklistView.clicked.connect(self.graph_calma)
+
+  def save_calma_plot(self):
     try:
-      return self.dockedDialog
-    except Exception as e:
-      return None
+      path = QtWidgets.QFileDialog.getSaveFileName(None, 'Save Plot Image', '/home')
+      if len(path[0]) < 1:
+        return
+      else:
+        self.calmaGraphView.figure.savefig(path[0], bbox_inches='tight')
+    except AttributeError as a:
+      return
+
+  def add_history_label_view(self):
+    today = datetime.date.today()
+    font = QtGui.QFont()
+    # font.setItalic(True)
+    font.setPixelSize(18)
+    self.historyLabel = QtWidgets.QLabel("Performances through the years, {0}".format(today.strftime("%A %d %B")))
+    self.historyLabel.setFont(font)
+    self.viewLayout.addWidget(self.historyLabel)
+
+  def get_widget(self):
+    return self.viewWidget
 
   def generate_map(self, results):
     """
@@ -95,6 +140,7 @@ class View():
     """
 
     self.calmaGraphView = graph.CalmaPlot(600,600,100, self.hasCalma)
+    self.app.debugDialog.add_line('{0}: generated CALMA figure'.format(sys._getframe().f_code.co_name))
 
   def generate_table(self, results):
     """
@@ -112,187 +158,15 @@ class View():
     self.tableHandler = application.TableHandler(self.app)
     self.tableHandler.fill_table(results)
 
-  def create_layouts(self, views):
-    """
-    Creates the layouts for the data view (the overall dialog).
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
-    views : str[]
-        List of requested views.
-    """
-
-    # Info window (left side)
-    self.views = views
-    self.propertiesSearchWindow = self.create_search_properties_window()
-    self.infoWidget =  QtWidgets.QTabWidget()
-    self.infoWidget.setTabPosition(2)
-    self.infoWidget.addTab(self.searchLayout, 'Search Form')
-    self.infoWidget.addTab(self.propertiesSearchWindow, 'Results')
-    self.infoWidget.setTabEnabled(1, False)
-
-    # Docked layout (right side)
-    self.viewsWidget = QtWidgets.QWidget()
-    self.viewsLayout = QtWidgets.QVBoxLayout() # QBoxLayout(2)
-
-    # Create a widget for each requested view
-    if 'table' in views:
-      self.viewsLayout.addWidget(self.tableHandler.get_table_container())
-    if 'map' in views:
-      self.viewsLayout.addWidget(self.mapSearchDialog)
-    if 'timeline' in views:
-      self.viewsLayout.addWidget(self.calmaGraphView) # self.timelineWebView)
-
-    # Set initial spanning between the view components
-    if len(views) == 3:
-      self.viewsLayout.setStretch(0, 2)
-      self.viewsLayout.setStretch(1, 6)
-      self.viewsLayout.setStretch(2, 2)
-    if len(views) == 2:
-      self.viewsLayout.setStretch(0, 5)
-      self.viewsLayout.setStretch(1, 5)
-
-    self.viewsWidget.setLayout(self.viewsLayout)
-
-    # Overall top level layout
-    self.dockedLayout = QtWidgets.QHBoxLayout()
-    self.dockedLayout.addWidget(self.infoWidget)
-    self.dockedLayout.addWidget(self.viewsWidget)
-    self.dockedLayout.setContentsMargins(0, 0, 0, 0)
-    self.dockedDialog = QtWidgets.QWidget()
-    self.dockedDialog.setWindowTitle("Data View")
-    self.dockedDialog.setLayout(self.dockedLayout)
-    self.dockedLayout.setStretch(0, 2)
-    self.dockedLayout.setStretch(1, 8)
-
-    # Set preferred re-size policy
-    # self.mapSearchDialog.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
-
-    return self.dockedLayout
-  def create_search_properties_window(self):
-    """
-    Creates a properties window for a data view.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
-    """
-
-    # Create layouts for each tab
-    layoutTabLayout = QtWidgets.QGridLayout()
-    searchTabLayout = QtWidgets.QGridLayout()
-
-    self.infoWindowWidgets = {}
-
-    # Add sliders for adjusting the layout
-    layoutTabLayout.addWidget(QtWidgets.QLabel('Table Span'), 1, 0)
-    self.infoWindowWidgets['tableSpan'] = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-    self.infoWindowWidgets['tableSpan'].setMaximum(10)
-    self.infoWindowWidgets['tableSpan'].setValue(2)
-    self.infoWindowWidgets['tableSpan'].setSingleStep(1)
-    layoutTabLayout.addWidget(self.infoWindowWidgets['tableSpan'], 1, 1)
-
-    layoutTabLayout.addWidget(QtWidgets.QLabel('Map Span'), 2, 0)
-    self.infoWindowWidgets['mapSpan'] = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-    self.infoWindowWidgets['mapSpan'].setMaximum(10)
-    self.infoWindowWidgets['mapSpan'].setValue(6)
-    self.infoWindowWidgets['mapSpan'].setSingleStep(1)
-    layoutTabLayout.addWidget(self.infoWindowWidgets['mapSpan'], 2, 1)
-
-    layoutTabLayout.addWidget(QtWidgets.QLabel('Timeline Span'), 3, 0)
-    self.infoWindowWidgets['timelineSpan'] = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-    self.infoWindowWidgets['timelineSpan'].setMaximum(10)
-    self.infoWindowWidgets['timelineSpan'].setValue(2)
-    self.infoWindowWidgets['timelineSpan'].setSingleStep(1)
-
-    layoutTabLayout.addWidget(self.infoWindowWidgets['timelineSpan'], 3, 1)
-    layoutTabLayout.setContentsMargins(0, 0, 0, 0)
-
-    self.infoWindowWidgets['tableSpan'].valueChanged.connect(self.change_proportions)
-    self.infoWindowWidgets['mapSpan'].valueChanged.connect(self.change_proportions)
-    self.infoWindowWidgets['timelineSpan'].valueChanged.connect(self.change_proportions)
-
-    # Add search button
-    self.infoWindowWidgets['searchButton'] = QtWidgets.QPushButton('Search')
-    self.infoWindowWidgets['searchBox'] = QtWidgets.QLineEdit()
-    searchTabLayout.addWidget(self.infoWindowWidgets['searchBox'], 1, 0)
-    searchTabLayout.addWidget(self.infoWindowWidgets['searchButton'], 1, 1)
-    searchTabLayout.addWidget(QtWidgets.QWidget(), 1, 2)
-    searchTabLayout.setRowStretch(0, 1)
-    searchTabLayout.setRowStretch(1, 12)
-    searchTabLayout.setRowStretch(2, 12)
-
-    self.infoWindowWidgets['searchButton'].clicked.connect(self.search_table)
-
-    # Add save tab
-    saveTabLayout = QtWidgets.QGridLayout()
-    self.infoWindowWidgets['saveButton'] = QtWidgets.QPushButton('Save')
-    self.infoWindowWidgets['saveEdit'] = QtWidgets.QLineEdit()
-    saveTabLayout.addWidget(self.infoWindowWidgets['saveEdit'], 1, 0)
-    saveTabLayout.addWidget(self.infoWindowWidgets['saveButton'], 1, 1)
-    saveTabLayout.addWidget(QtWidgets.QWidget(), 2, 2)
-    saveTabLayout.setRowStretch(0, 1)
-    saveTabLayout.setRowStretch(1, 12)
-    saveTabLayout.setRowStretch(2, 12)
-    self.infoWindowWidgets['saveButton'].clicked.connect(self.save_search)
-
-    # Add tracklist label for properties sub-window
-    self.infoWindowWidgets['tracklistLabel'] = QtWidgets.QLabel("Tracklist:")
-
-    # Create individual tabs
-    self.tabWidget = QtWidgets.QTabWidget()
-    self.layoutTab = QtWidgets.QTabWidget()
-    self.searchTab = QtWidgets.QTabWidget()
-    self.saveTab = QtWidgets.QTabWidget()
-    self.propertiesTab = QtWidgets.QTabWidget()
-
-    # Add tracklist tab components
-    self.tracklistView = QtWidgets.QListWidget(self.propertiesTab)
-    self.tracklistView.clicked.connect(self.graph_calma)
-    self.tracklistLayout = QtWidgets.QVBoxLayout(self.propertiesTab)
-    self.tracklistLayout.addWidget(self.infoWindowWidgets['tracklistLabel'])
-    self.tracklistLayout.addWidget(self.tracklistView)
-    self.tracklistWidget = QtWidgets.QWidget()
-    self.tracklistWidget.setLayout(self.tracklistLayout)
-
-    # Create properties tab layout
-    self.propertiesTreeView = application.TreePropertiesView(self.app) # QtWidgets.QTreeView(self.propertiesTab)
-    self.propertiesTabLayout = QtWidgets.QVBoxLayout(self.propertiesTab)
-    self.propertiesTabLayout.addWidget(self.propertiesTreeView)
-    self.propertiesTabLayout.addWidget(self.tracklistWidget)
-    self.propertiesTab.setLayout(self.propertiesTabLayout)
-    self.propertiesTreeView.header().hide()
-
-    # Set tab layouts
-    self.layoutTab.setLayout(layoutTabLayout)
-    self.searchTab.setLayout(searchTabLayout)
-    self.saveTab.setLayout(saveTabLayout)
-
-    # Finally, add tabs to the tab widget
-    self.tabWidget.addTab(self.propertiesTab, 'Properties')
-    self.tabWidget.addTab(self.searchTab, 'Filter')
-    self.tabWidget.addTab(self.layoutTab, 'Layout')
-    self.tabWidget.addTab(self.saveTab, 'Save')
-
-    self.goBackToSearchTab = QtWidgets.QTabWidget()
-    self.tabWidget.tabBar().setTabTextColor(4, QtCore.Qt.red)
-
-    self.searchVisible = False
-
-    # Add tooltips
-    self.add_tooltips()
-
-    return self.tabWidget # self.tabWidget
-
   def save_search(self):
     query = self.app.searchHandler.lastQueryExecuted
-    subList = [self.infoWindowWidgets['saveEdit'].text(), query]
+    subList = [self.app.searchForm.infoWindowWidgets['saveEdit'].text(), query]
     self.app.savedSearches.append(subList)
     cache.save(self.app.savedSearches, 'savedSearches')
     self.app.initialize_history_table()
+    #self.app.debugDialog.add_line('{0}: saved new search under name {1}'.format(sys._getframe().f_code.co_name),
+    # self.app.searchForm.infoWindowWidgets['saveEdit'].text())
+
     return
 
   def graph_calma(self, item):
@@ -307,90 +181,54 @@ class View():
         Index in the tracklist clicked.
     """
 
-    # If no calma instance return
+    # Retrieve CALMA URL for this track in the performance
     try:
-      # Retrieve CALMA URL for this track in the performance
       calmaURL = self.tracklistCalma[item.data()]
-
-      # Retrieve and set CALMA data
-      print(calmaURL)
-      self.calma.set_new_track_calma(calmaURL)
-
-      # Create a plot of the CALMA data
-      self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.keyInfo, self.calma.duration)
-
-      # Update the widget geometry, showing the plot to the user
-      self.calmaGraphView.updateGeometry()
-    except KeyError as e:
-      print(e)
-      print('Not found')
+    # If no calma instance return
+    except KeyError as k:
       return
 
+    # Retrieve and set CALMA data
+    self.calma.set_new_track_calma(calmaURL)
+
+    # Create a plot of the CALMA data
+    if self.app.searchForm.infoWindowWidgets['toggleKeysSegments'].currentText() == "Key Changes":
+      self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.keyInfo, self.calma.duration, "key")
+    else:
+      self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.segmentInfo, self.calma.duration, "segment")
+
+    # Update the widget geometry, showing the plot to the user
+    self.calmaGraphView.updateGeometry()
+
   def update_properties_tab(self):
-    self.propertiesTabModel = QtGui.QStandardItemModel(self.propertiesTreeView)
+    self.propertiesTabModel = QtGui.QStandardItemModel(self.app.searchForm.propertiesTreeView)
     properties = self.app.sparql.get_release_properties(self.get_label_current_row())
 
     if not isinstance(properties, Exception):
-      self.propertiesTreeView.fill_properties_tree_view(self.propertiesTabModel, properties)
-      self.propertiesTreeView.setModel(self.propertiesTabModel)
+      self.app.searchForm.propertiesTreeView.fill_properties_tree_view(self.propertiesTabModel, properties)
+      self.app.searchForm.propertiesTreeView.setModel(self.propertiesTabModel)
+
   def get_label_current_row(self):
     for c in range(0, self.tableHandler.get_table().columnCount()-1):
       try:
         currentRowLabel = self.tableHandler.get_table().item(self.tableHandler.get_table().currentRow(), c).text().lower()
 
         if 'live at' in currentRowLabel:
-          print(self.tableHandler.get_table().item(self.tableHandler.get_table().currentRow(), c))
           return self.tableHandler.get_table().item(self.tableHandler.get_table().currentRow(), c).text()
       except Exception as e:
         print(e)
         return
 
-  def change_proportions(self):
-    """
-    Adjusts the proportions of dialog given to each individual view.
-
-    This function is called whenever the user moves the sliders in the "Layout" tab, the
-    sliders dictate the ratio between the view, e.g. 10:10:10 would give each an equal amount
-    of space.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
-    """
-
-    # Table slider
-    if (self.infoWindowWidgets['tableSpan'].value() > 0 ):
-      self.viewsLayout.setStretch(0, int(self.infoWindowWidgets['tableSpan'].value()))
-    # Timeline slider
-    if (self.infoWindowWidgets['timelineSpan'].value() > 0):
-      self.viewsLayout.setStretch(2, int(self.infoWindowWidgets['timelineSpan'].value()))
-    # Map slider
-    if (self.infoWindowWidgets['mapSpan'].value() > 0):
-      self.viewsLayout.setStretch(1, int(self.infoWindowWidgets['mapSpan'].value()))
-
-    # Force a re-paint of the view
-    self.viewsWidget.update()
-    self.mapSearchDialog.update()
-    self.tableHandler.get_table().update()
-
   def move_focus(self, index):
-    # If click was from map or timeline
+    # If click was from map
     if isinstance(index, str):
       # Change focus on table
       if 'table' in self.views:
-        self.tableHandler.change_focus(index)
-      # if 'timeline' in self.views:
-      #   self.timelineWebView.page().runJavaScript("""highlightMarker(`{0}`)""".format(index))
-      if 'map' in self.views:
-        self.mapSearchDialog.page().runJavaScript("""changeMarkerFocus(`{0}`)""".format(index))
-
+        row = self.tableHandler.change_focus(index)
     # If click was from table
     elif isinstance(index, QtWidgets.QTableWidgetItem):
       if 'map' in self.views:
-        self.mapSearchDialog.page().runJavaScript("""changeMarkerFocus(`{0}`)""".format(index.row()))
-      # if 'timeline' in self.views:
-      #   self.timelineWebView.page().runJavaScript("""highlightMarker(`{0}`)""".format(index.row()))
+        self.mapSearchDialog.page().runJavaScript("""changeMarkerFocus(`{0}`)""".format(self.tableHandler.resultsTable.item(index.row(), 0).text()))
 
     self.update_properties_tab()
     self.update_tracklist()
@@ -407,7 +245,7 @@ class View():
         Class instance.
     """
     # Clear previous tracklist
-    self.tracklistView.clear()
+    self.app.searchForm.tracklistView.clear()
 
     # Create dict to store CALMA URLs
     self.tracklistCalma = {}
@@ -435,7 +273,7 @@ class View():
 
     # Add new tracklist to list widget
     for i in labels:
-      self.tracklistView.addItem(i)
+      self.app.searchForm.tracklistView.addItem(i)
 
   def search_table(self, text):
     """
@@ -448,11 +286,11 @@ class View():
     """
 
     # Search table
-    results = self.tableHandler.get_table().findItems(self.infoWindowWidgets['searchBox'].text(), QtCore.Qt.MatchContains)
+    results = self.tableHandler.get_table().findItems(self.app.searchForm.infoWindowWidgets['searchBox'].text(), QtCore.Qt.MatchContains)
 
     # Move view to selected item
     if len(results) > 0:
       self.move_focus(str(results[0].row()))
 
   def add_tooltips(self):
-    self.tracklistView.setToolTip("Displays a track-list for a given performance, click for CALMA data.")
+    self.app.searchForm.tracklistView.setToolTip("Displays a track-list for a given performance, click for CALMA data.")

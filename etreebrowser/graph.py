@@ -4,6 +4,7 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatch
 import numpy as np
+import operator
 
 class CalmaPlot(FigureCanvas):
   """
@@ -35,6 +36,9 @@ class CalmaPlot(FigureCanvas):
     # Add an initial plot to our figure
     self.canvasGraph = self.fig.add_subplot(111)
 
+    # Fetch colour map
+    self.colourMap = self.get_colour_map()
+
     # Initialize figure canvas, which initializes an instance of QtWidget
     FigureCanvas.__init__(self, self.fig)
     self.setParent(parent)
@@ -62,7 +66,25 @@ class CalmaPlot(FigureCanvas):
     FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
     FigureCanvas.updateGeometry(self)
 
-  def plot_calma_data(self, loudnessValues, keyInfo, duration):
+  def get_segment_colour_map(self, features):
+    highest = 0
+    newColourMap = {}
+    colourList = list(self.colourMap.values())
+
+    setFeatures = []
+    for f in features:
+      setFeatures.append(f[1])
+    setFeatures = list(set(setFeatures))
+    # for f in features:
+    #   if int(float(f[1])) > highest:
+    #     highest = int(float(f[1]))
+
+    for i in range(1,len(setFeatures)+1):
+      newColourMap[str(i)] = colourList[i]
+
+    return newColourMap
+
+  def plot_calma_data(self, loudnessValues, features, duration, type):
     """
     Takes CALMA data for a single track as input, and creates a plot.
 
@@ -72,15 +94,103 @@ class CalmaPlot(FigureCanvas):
         Class instance.
     loudnessValues : float[]
         An array of loudness / amplitude values.
-    keyInfo : float[]
-        Key change information.
+    features : float[]
+        Features information.
     duration : float
         The duration of the track.
     """
+    # Replace colour map if needed
+    if type == 'segment' : self.colourMap = self.get_segment_colour_map(features)
+    if type == 'key' : self.colourMap = self.get_colour_map()
 
     # Hide placeholder text if visible
     self.placeHolderText.set_text('')
 
+    # Perform pre-processing
+    nploudnessValues, duration, xSpaced, average = self.pre_processing(loudnessValues, duration)
+
+    # Plot waveform
+    self.canvasGraph.axes.cla()
+    self.canvasGraph.plot(xSpaced, nploudnessValues)
+
+    for index, key in enumerate(features):
+      # Calculate graph positions
+      lx, ly, rec = self.calculate_graph_element_position(features, key, index, duration, average)
+
+      # Add annotation to plot
+      self.canvasGraph.annotate(key[1], (lx, ly), weight='bold', color='Black',
+                                fontsize=7, ha='center', va='center', rotation=270)
+      self.ax.add_artist(rec)
+
+    # Set axes labels
+    self.ax.set_yticklabels([])
+    self.ax.set_xlabel("Time (seconds)")
+
+    # Add colour legend for keys
+    keysAsSet = list(set([x[1] for x in features]))
+    patches = []
+
+    for k in keysAsSet:
+      # Plot rectangle for key changes
+      try:
+        fc = self.colourMap[k]
+      except KeyError as keyerr:
+        fc = 'grey'
+
+      patch = mpatch.Patch(color=fc, label=k)
+      patches.append(patch)
+
+    self.canvasGraph.legend(handles=patches, bbox_to_anchor=(1.00, 1), loc=2, borderaxespad=0, fontsize=7, ncol=2)
+    # self.fig.subplots_adjust(left=0.01, right=0.9, top=0.99, bottom=0.9)
+    self.fig.subplots_adjust(left=0.00, right=0.85, top=0.95)
+    self.finishDraw()    # self.draw() # Causes tests to crash
+    self.fig.patch.set_alpha(1.0)
+    return
+
+  def calculate_graph_element_position(self, keyInfo, key, index, duration, average):
+    # Rectangle takes (lowerleftpoint=(X, Y), width, height)
+    xy = (float(key[0]), self.ax.get_ylim()[1])
+
+    # If not the latest element in the key-change data
+    if index < len(keyInfo) - 1:
+      # Swap width and height as we are rotating 270 degrees
+      height = keyInfo[index + 1][0] - keyInfo[index][0]
+    else:
+      height = duration - keyInfo[index][0]
+
+    width = self.ax.get_ylim()[1]
+    angle = 270
+
+    # Plot rectangle for key changes
+    try:
+      fc = self.colourMap[key[1]]
+    except KeyError as k:
+      fc = 'grey'
+    rec = mpatch.Rectangle(xy, width, height, angle=angle, alpha=0.5, fc=fc)
+
+    # Calculate label positions
+    rx, ry = rec.get_xy()
+    lx = rx + rec.get_height() / 2.0
+    ly = average
+
+    return lx, ly, rec
+
+  def get_colour_map(self):
+    try:
+      return {'C# minor' : 'Grey', 'A major' : 'Red', 'D minor' : 'Green',
+                   'Eb Purple': 'greenyellow', 'D major' : 'Pink', 'G major' : 'Orange',
+                   'G minor': 'goldenrod', 'A minor' : 'indianred', 'C minor' : 'peachpuff',
+                   'B minor' : 'deepskyblue', 'Ab Major' : 'firebrick', 'Eb / D# minor' : 'orchid',
+                   'Ab major' : 'moccasin', 'G# minor' : 'slateblue', 'Eb major' : 'turquoise',
+                   'C major' : 'tomato', 'B major' : 'darkmagenta', 'F major' : 'olivedrab',
+                   'F minor' : 'olive', 'Bb major' : 'lightsteelblue', 'Db major' : 'plum',
+                   'Bb minor' : 'mediumspringgreen', 'E minor' : 'lightsalmon',
+                   'F# / Gb major' : 'gold', 'F# minor' : 'burlywood'}
+    # If colour not found to match, return grey
+    except KeyError as e:
+      print('Unmatched colour: {0}'.format(e))
+      return 'Grey'
+  def pre_processing(self, loudnessValues, duration):
     # Clip
     loudnessValues = loudnessValues[100:-50]
     nploudnessValues = np.array(loudnessValues)
@@ -94,63 +204,7 @@ class CalmaPlot(FigureCanvas):
     # Generate linear spacing for seconds in X-AXIS
     xSpaced = np.linspace(0, len(loudnessValues) / frame_rate, num=len(loudnessValues))
 
-    # Plot waveform
-    self.canvasGraph.axes.cla()
-    self.canvasGraph.plot(xSpaced, nploudnessValues)
-    colourMap = {'C# minor' : 'Grey', 'A major' : 'Red', 'D minor' : 'Green',
-                 'Eb Purple': 'greenyellow', 'D major' : 'Pink', 'G major' : 'Orange',
-                 'G minor': 'goldenrod', 'A minor' : 'indianred', 'C minor' : 'peachpuff',
-                 'B minor' : 'deepskyblue', 'Ab Major' : 'firebrick', 'Eb / D# minor' : 'orchid',
-                 'Ab major' : 'moccasin', 'G# minor' : 'slateblue', 'Eb major' : 'turquoise',
-                 'C major' : 'tomato', 'B major' : 'darkmagenta', 'F major' : 'olivedrab',
-                 'F minor' : 'olive', 'Bb major' : 'lightsteelblue', 'Db major' : 'plum',
-                 'Bb minor' : 'mediumspringgreen', 'E minor' : 'lightsalmon',
-                 'F# / Gb major' : 'gold'}
+    return nploudnessValues, duration, xSpaced, average
 
-    for index, key in enumerate(keyInfo):
-      # Rectangle takes (lowerleftpoint=(X, Y), width, height)
-      xy = (float(key[0]), self.ax.get_ylim()[1])
-
-      # If not the latest element in the key-change data
-      if index < len(keyInfo) - 1:
-        # Swap width and height as we are rotating 270 degrees
-        height = keyInfo[index+1][0] - keyInfo[index][0]
-      else:
-        height = duration - keyInfo[index][0]
-
-      width = self.ax.get_ylim()[1]
-      angle = 270
-
-      # Plot rectangles for key changes
-      rec = mpatch.Rectangle(xy, width, height, angle=angle, alpha=0.5, fc=colourMap[key[1]])
-      self.ax.add_artist(rec)
-
-      # Calculate label positions
-      rx, ry = rec.get_xy()
-      lx = rx + rec.get_height() / 2.0
-      ly = average
-
-      # Add annotation to plot
-      self.canvasGraph.annotate(key[1], (lx, ly), weight='bold', color='Black',
-                                fontsize=7, ha='center', va='center', rotation=270)
-
-    # Set axes labels
-    self.ax.set_yticklabels([])
-    self.ax.set_xlabel("Time (seconds)")
-
-    # Add colour legend for keys
-    keysAsSet = list(set([x[1] for x in keyInfo]))
-    patches = []
-
-    for k in keysAsSet:
-      patch = mpatch.Patch(color=colourMap[k], label=k)
-      patches.append(patch)
-    self.canvasGraph.legend(handles=patches, bbox_to_anchor=(1.00, 1), loc=2, borderaxespad=0, fontsize=7)
-    self.fig.subplots_adjust(left=0.01, right=0.9, top=0.7, bottom=0.3)
-
-    self.draw()
-    self.fig.patch.set_alpha(1.0)
-
-    print('Finished graph plot func')
-    return
-
+  def finishDraw(self):
+    self.fig.canvas.draw_idle()

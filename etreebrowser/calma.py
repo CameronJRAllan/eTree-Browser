@@ -65,6 +65,7 @@ class Calma():
 
   def set_new_track_calma(self, calmaURL):
     self.keyInfo = self.get_calma_data(calmaURL, 'key')
+    self.segmentInfo = self.get_calma_data(calmaURL, 'segmentation')
     self.loudnessInfo = self.get_calma_data(calmaURL, 'loudness')
 
   def get_calma_data(self, calmaURL, feature):
@@ -72,13 +73,13 @@ class Calma():
       featureURL = "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-keydetector"
     elif feature == "loudness":
       featureURL = "http://vamp-plugins.org/rdf/plugins/vamp-libxtract#loudness"
+    elif feature == "segmentation":
+      featureURL = "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-segmenter_output_segmentation"
     else:
       raise("feature variable / parameter error")
 
     # Get top-level analysis information
     url = calmaURL + '/analyses.ttl'
-
-    # DEBUGGING DURATION
     self.duration = self.retrieve_duration_from_analyses(url)
 
     r = requests.get(url, stream=True)
@@ -98,11 +99,13 @@ class Calma():
             blobContents = self.extract_zip(obj)
 
             if feature == "key":
-              return self.retrieve_key_from_blob(blobContents)
+              return self.retrieve_events_blob(blobContents, "key")
+            if feature == "segmentation":
+              return self.retrieve_events_blob(blobContents, "segment")
             elif feature == "loudness":
               self.retrieve_loudness_from_blob(blobContents)
 
-  def retrieve_key_from_blob(self, blob):
+  def retrieve_events_blob(self, blob, featureType):
     g = rdflib.Graph()
     g.parse(data=blob, format="n3")
 
@@ -129,14 +132,14 @@ class Calma():
 
           qres = g.query(q)
           for i, e in qres:
-            # If key label found
+            # If label found
             if not e:
-              dictKey['key'] = str(i)
+              dictKey[featureType] = str(i)
             # If time reference found
             else:
               dictKey['time'] = float(e.replace("S", "").replace("PT", ""))
 
-        sublist = [dictKey['time'], dictKey['key']]
+        sublist = [dictKey['time'], dictKey[featureType]]
 
         # Append dict of key info to events list
         if sublist not in events: events.append(sublist)
