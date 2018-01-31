@@ -3,17 +3,18 @@
 First year project supervised by Sean Bechhofer, as part of COMP34100, and centered on meta-data for live music.
 
 ## Getting Started
+I recommend using pip to automatically install any dependencies required by the application.
 
 ### Prerequisites
 [Python 3](https://www.python.org/download/releases/3.0/)
 
-Python package dependencies:
-PyQt5
-geopy
-SPARQLWrapper
-pyaudio
-qtawesome
-matplotlib
+### Python package dependencies:    
+PyQt5    
+geopy    
+SPARQLWrapper    
+pyaudio    
+qtawesome    
+matplotlib    
 
 ### Running the program
 Clone the master branch, and within the directory:
