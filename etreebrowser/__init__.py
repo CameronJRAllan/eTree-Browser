@@ -1,7 +1,12 @@
-from PyQt5 import QtWidgets
-import sys
-import application
-
+try:
+  from PyQt5 import QtWidgets
+  import sys
+  import application
+except (ImportError, ModuleNotFoundError) as e:
+  print('You are missing package: ' + str(e)[15:])
+  print('Quitting ..')
+  exit(1)
+  
 # Create QApplication instance
 app = QtWidgets.QApplication(sys.argv)
 
