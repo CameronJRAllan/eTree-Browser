@@ -1,33 +1,35 @@
 # Project Title
 
-One Paragraph of project description goes here
+First year project supervised by Sean Bechhofer, as part of COMP34100, and centered on meta-data for live music.
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
-
 ### Prerequisites
+[Python 3](https://www.python.org/download/releases/3.0/)
 
+Python package dependencies:
+PyQt5
+geopy
+SPARQLWrapper
+pyaudio
+qtawesome
+matplotlib
 
-
-### Installing
-
-
+### Running the program
+Clone the master branch, and within the directory:
+```
+python etreebrowser/__init__.py
+```
 
 ## Running the tests
-
-
-
-## Deployment
-
-Add additional notes about how to deploy this on a live system
+Tests are found in the /test/ folder, and are designed to be run with PyTest and PyQt.
 
 ## Built With
 
-* [PyQt](http://www.dropwizard.io/1.0.2/docs/) - The web framework used
-* [eTree](https://maven.apache.org/) - Dependency Management
-* [Google Maps](https://rometools.github.io/rome/) - Used to generate RSS Feeds
-* [MatPlotLib](https://rometools.github.io/rome/) - Used to generate RSS Feeds
+* [Qt](https://www.qt.io/) - Graphical user interface framework.
+* [eTree](http://etree.linkedmusic.org/) - Provides the data used within the project.
+* [Google Maps](https://developers.google.com/maps/) - Used to generate geographical representations of meta-data.
+* [MatPlotLib](https://matplotlib.org/) - Used to generate visual representations of feature analyses.
 
 ## Versioning
 
