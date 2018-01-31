@@ -4,6 +4,11 @@ import application
 import sys
 from PyQt5 import QtWidgets, QtCore, QtGui
 from unittest import TestCase
+import mock
+
+def set_updated_table():
+  tableUpdated = True
+  print(tableUpdated)
 
 class TestTableHandler():
   @pytest.fixture(scope="function", autouse=True)
@@ -18,28 +23,25 @@ class TestTableHandler():
     self.tableHandler = application.TableHandler(self.prog)
     self.signalStubs = SignalStubs()
     self.results = self.prog.sparql.get_tracklist('Mogwai Live at the Forum on 16-10-1999')
+
+    # Setup a default view in the table
+    self.prog.searchHandler.setup_views(['table'], self.results)
+
     # self.TableHandler.generate_results_table(results, **self.signalStubs.kwargs)
 
   def test_on_table_scroll(self):
-    self.fail()
+    try:
+      self.prog.searchHandler.view.tableHandler.resultsTable.scrollToBottom()
+    except Exception as e:
+      pytest.fail()
 
-  def test_retrieve_labels_scroll(self):
-    self.fail()
-
-  def test_update_table_item(self):
-    self.fail()
-
-  def test_get_table_container(self):
-    assert(isinstance(self.tableHandler.get_table_container, QtWidgets.QWidget))
+  # @mock.patch('application.TableHandler.update_table_item', side_effect=set_updated_table())
+  # def test_retrieve_labels_scroll(self, updateTableItemMock):
+  #   self.prog.searchHandler.view.tableHandler.resultsTable.scrollToBottom()
+  #   assert(updateTableItemMock.assert_called())
 
   def test_get_table(self):
-    assert(isinstance(self.tableHandler.get_table(), QtWidgets.QTableWidget))
-
-  def test_fill_table(self):
-    self.fail()
-
-  def test_add_table_item(self):
-    self.fail()
+    assert(isinstance(self.prog.searchHandler.view.tableHandler.resultsTable, QtWidgets.QTableWidget))
 
   def test_generate_table_start(self):
     self.tableHandler.generate_table_start(2, 2, ["Column Name 1", "Column Name 2"])
@@ -100,7 +102,10 @@ class TestTableHandler():
     assert(label == "Killing All the Flies")
 
   def test_set_location_width(self):
-    self.fail()
+    self.prog.searchHandler.view.tableHandler.set_location_width()
+    for c in range(0, self.prog.searchHandler.view.tableHandler.resultsTable.columnCount() - 1):
+      if self.prog.searchHandler.view.tableHandler.horizontalHeaderItem(c).text() == 'Location':
+        assert(self.prog.searchHandler.view.tableHandler.columnWidth(c) == 400)
 
 class SignalStubs(QtCore.QObject):
   update_table_item = QtCore.pyqtSignal(int, int, QtWidgets.QTableWidgetItem)

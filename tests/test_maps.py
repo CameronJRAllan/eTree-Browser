@@ -58,6 +58,22 @@ class TestMaps(TestCase):
     assert(self.signalStubs.reached_end == True)
     assert(self.signalStubs.callback_recieved == True)
 
+  def test_add_points_no_place(self):
+    assert(self.signalStubs.reached_start == False)
+    assert(self.signalStubs.reached_end == False)
+    assert(self.signalStubs.callback_recieved == False)
+    self.mapInstance.geoCache.pop("Hidden Club @ Manchester, Test", None)
+
+    result = {'results' : {'bindings' : [{'label': {'type': 'literal', 'value': 'Test Artist Live at Hidden Club @ Manchester on 2008-03-27'},
+                                          'name': {'type': 'literal', 'value': 'Test Artist'},
+                                          'place': {'type': 'literal', 'value': 'Test'}}]}}
+
+    self.mapInstance.homepage_add(result, **self.signalStubs.kwargs)
+
+    assert(self.signalStubs.reached_start == True)
+    assert(self.signalStubs.reached_end == True)
+    assert(self.signalStubs.callback_recieved == True)
+
   def test_add_empty_results(self):
     assert(self.signalStubs.reached_start == False)
     assert(self.signalStubs.reached_end == False)

@@ -3,6 +3,7 @@ import requests
 import lastfm
 import httpretty
 import pytest
+import re
 lastfmHandler = lastfm.lastfmAPI('c957283a3dc3401e54b309ee2f18645b', 'f555ab4615197d1583eb2532b502c441')
 
 @httpretty.activate
@@ -47,7 +48,11 @@ def test_request_session_key():
 
 @httpretty.activate
 def test_update_now_playing():
-  paras = [['api_key', 'c957283a3dc3401e54b309ee2f18645b'], ['format', 'json'], ['method', 'auth.getToken']]
-  url = lastfmHandler.generate_api_request(paras, 'jadiajsio')
-  httpretty.register_uri(httpretty.POST, url, status=200)
+  httpretty.register_uri(
+    httpretty.POST,
+    re.compile("http://ws.audioscrobbler.com/2.0/(\w+)"),
+    status=200,
+  )
+
+  lastfmHandler.update_now_playing('Artist', 'FakeTrack')
 

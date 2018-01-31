@@ -40,19 +40,19 @@ def test_mock_retrieve_release_info(mocker):
   assert(prog.browseTreeProperties.fill_properties_tree_view.call_count == 1)
 
 def test_advanced_search_fields(qtbot):
-  assert(prog.advancedSearchLayout.count() == 0)
+  assert(prog.searchForm.advancedSearchLayout.count() == 0)
 
-  qtbot.mouseClick(prog.addConditionBtn, QtCore.Qt.LeftButton)
-  assert(prog.advancedSearchLayout.count() == 3)
+  qtbot.mouseClick(prog.searchForm.addConditionBtn, QtCore.Qt.LeftButton)
+  assert(prog.searchForm.advancedSearchLayout.count() == 3)
 
-  qtbot.mouseClick(prog.addConditionBtn, QtCore.Qt.LeftButton)
-  assert(prog.advancedSearchLayout.count() == 6)
+  qtbot.mouseClick(prog.searchForm.addConditionBtn, QtCore.Qt.LeftButton)
+  assert(prog.searchForm.advancedSearchLayout.count() == 6)
 
-  qtbot.mouseClick(prog.removeConditionBtn, QtCore.Qt.LeftButton)
-  assert(prog.advancedSearchLayout.count() == 3)
+  qtbot.mouseClick(prog.searchForm.removeConditionBtn, QtCore.Qt.LeftButton)
+  assert(prog.searchForm.advancedSearchLayout.count() == 3)
 
-  qtbot.mouseClick(prog.removeConditionBtn, QtCore.Qt.LeftButton)
-  assert(prog.advancedSearchLayout.count() == 0)
+  qtbot.mouseClick(prog.searchForm.removeConditionBtn, QtCore.Qt.LeftButton)
+  assert(prog.searchForm.advancedSearchLayout.count() == 0)
 
 def test_browse_search_artist(qtbot):
   qtbot.keyClicks(prog.quickFilter, '3 Dimensional Figures')
