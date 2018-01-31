@@ -3,6 +3,10 @@ import pytest
 import application
 from PyQt5 import QtWidgets, QtGui, QtCore
 import alsaaudio
+import mock
+import export
+import lastfm
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 
 # NOTE TO THE READER
 # These tests are designed in mind to be run with Py.Test, the IDE used during programming was PyCharm
@@ -113,10 +117,75 @@ class TestApplication():
     qtbot.keyClicks(self.prog.quickFilter, "Test")
     assert (self.prog.quickFilter.text() == "Test")
 
-      #
-    # self.prog.change_type(1)
-    # assert (self.prog.browseList.model() == self.prog.genreListModel)
-    #
-    # self.prog.change_type(2)
-    # assert (self.prog.browseList.model() == self.prog.locationListModel)
+  def test_open_tree_menu(self, qtbot):
+    qtbot.addWidget(self.prog.quickFilter)
+    qtbot.addWidget(self.prog.browseList)
+    qtbot.keyClicks(self.prog.quickFilter, "3 Dimensional Figures")
+    self.prog.browseListHandler.browse_link_clicked(self.prog.browseList.model().index(0, 0))
+    self.prog.browseTreeView.setCurrentIndex(self.prog.browseTreeView.model().index(0, 0))
 
+    try:
+      self.prog.open_tree_menu(QtCore.QPoint(1,0))
+    except Exception as e:
+      pytest.fail()
+
+  @mock.patch('export.Export.export_data')
+  def test_tree_browse_menu_click(self, arg):
+    item = QtGui.QStandardItem('Collapse')
+    self.prog.menu_on_item = QtCore.QPoint(1,0)
+    self.prog.tree_browse_menu_click(QtWidgets.QAction("JSON"))
+
+  @mock.patch('lastfm.lastfmAPI.logout')
+  def test_lastfm_deauthenticate(self, arg):
+    self.prog.lastfm_deauthenticate()
+    assert(self.prog.lastfmBtn.styleSheet() == '')
+    assert(self.prog.lastfmStatus.text() == 'Connect to Last.FM')
+
+  def test_change_type_order_ZA_locations(self):
+    self.prog.typeBrowseCombo.setCurrentIndex(2)
+    self.prog.typeOrderByCombo.setCurrentIndex(1)
+
+    assert(self.prog.typeBrowseCombo.currentText() == 'Location')
+    assert(self.prog.typeOrderByCombo.currentText() == 'Desc')
+
+  def test_retrieve_properties_subwindow(self):
+    treeItem = QtGui.QStandardItem("http://etree.linkedmusic.org/track/3df2008-01-10.The_Red_Square_Albany-2")
+
+    # Set-up initial release data
+    self.prog.browseTreeProperties.retrieve_release_info("3 Dimensional Figures Live at The Red Square on 2008-01-10")
+    self.prog.browseTreeProperties.retrieve_properties_subwindow(treeItem.index())
+
+    assert(self.prog.browseTreeProperties.model().rowCount() == 15)
+
+  def test_add_tracks_audiolist(self):
+    # Get release data
+    release = self.prog.sparql.get_tracklist_grouped("Mogwai Live at The Forum on 1999-10-16")
+
+    # Call function and check values returned
+    audioList = self.prog.treeViewHandler.add_tracks_audiolist(release['results']['bindings'], 0, '.flac')
+
+    assert(type(audioList) == type([]))
+    assert(len(audioList) == 11)
+
+  def test_get_track_index_and_format(self):
+    # Get release data
+    release = self.prog.sparql.get_tracklist_grouped("Mogwai Live at The Forum on 1999-10-16")
+    self.model = QtGui.QStandardItemModel()
+    self.item = QtGui.QStandardItem("4. Summer.")
+    self.model.appendRow(self.item)
+    trackIndex, prefFormat = self.prog.treeViewHandler.get_track_index_and_format(self.model.index(0, 0), release['results']['bindings'])
+
+    assert(trackIndex == 4)
+    assert(prefFormat == '.flac')
+
+  def test_check_lastfm_status_has_session(self):
+    self.prog.lastfmHandler.sessionKey = 'STUBKEY'
+    self.prog.check_lastfm_status()
+    assert(self.prog.lastfmBtn.styleSheet() == """QPushButton {
+                                      background-color: #BA2024;
+                                    }""")
+
+  def test_check_lastfm_status_no_session(self):
+    self.prog.lastfmHandler.sessionKey = None
+    self.prog.check_lastfm_status()
+    assert(isinstance(self.prog.browserDialog, QWebEngineView))

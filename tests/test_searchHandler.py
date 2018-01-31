@@ -2,8 +2,9 @@ from unittest import TestCase
 import pytest
 import application
 import sys
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from unittest import TestCase
+import search
 
 class TestSearchHandlerQt():
   @pytest.fixture(scope="function", autouse=True)
@@ -15,34 +16,34 @@ class TestSearchHandlerQt():
     self.prog = application.mainWindow(self.dialog)
 
     # Search handler
-    self.searchHandler = application.SearchHandler(self.prog)
+    self.searchHandler = search.SearchHandler(self.prog)
 
   def test_add_custom_condition(self):
     # Check is zero
-    assert (self.prog.advancedSearchLayout.count() == 0)
+    assert (self.prog.searchForm.advancedSearchLayout.count() == 0)
 
     # Check is 3
     self.searchHandler.add_custom_condition()
-    assert (self.prog.advancedSearchLayout.count() == 3)
+    assert (self.prog.searchForm.advancedSearchLayout.count() == 3)
 
     # Check is 6
     self.searchHandler.add_custom_condition()
-    assert (self.prog.advancedSearchLayout.count() == 6)
+    assert (self.prog.searchForm.advancedSearchLayout.count() == 6)
 
   def test_remove_custom_condition(self):
     # Check is zero
-    assert (self.prog.advancedSearchLayout.count() == 0)
+    assert (self.prog.searchForm.advancedSearchLayout.count() == 0)
 
     self.searchHandler.add_custom_condition()
     self.searchHandler.remove_custom_condition()
-    assert (self.prog.advancedSearchLayout.count() == 0)
+    assert (self.prog.searchForm.advancedSearchLayout.count() == 0)
 
     self.searchHandler.add_custom_condition()
     self.searchHandler.add_custom_condition()
     self.searchHandler.remove_custom_condition()
-    assert (self.prog.advancedSearchLayout.count() == 3)
+    assert (self.prog.searchForm.advancedSearchLayout.count() == 3)
     self.searchHandler.remove_custom_condition()
-    assert (self.prog.advancedSearchLayout.count() == 0)
+    assert (self.prog.searchForm.advancedSearchLayout.count() == 0)
 
   def test_generate_field_combo(self):
     fieldCombo = self.searchHandler.generate_field_combo()
@@ -50,7 +51,7 @@ class TestSearchHandlerQt():
 
   def test_update_auto_complete(self, qtbot):
     # Click on button to add new custom condition
-    qtbot.mouseClick(self.prog.addConditionBtn, QtCore.Qt.LeftButton)
+    qtbot.mouseClick(self.prog.searchForm.addConditionBtn, QtCore.Qt.LeftButton)
 
     # Check auto-complete
     try:
@@ -59,11 +60,11 @@ class TestSearchHandlerQt():
       pytest.fail()
 
   def test_load_saved_search(self):
-    pytest.fail()
-
-  def test_add_search_tab_contents(self):
-    self.prog.searchHandler.add_search_tab_contents()
-    assert(self.prog.searchTab.layout().count() == 1)
+    model = QtGui.QStandardItemModel()
+    item = QtGui.QStandardItem("Grateful Dead")
+    model.appendRow(item)
+    self.prog.searchHandler.load_saved_search(model.index(0, 0))
+    assert(self.prog.topMenuTabs.currentIndex() == 2)
 
   def test_generate_condition_combo(self):
     combo = self.searchHandler.generate_condition_combo()
@@ -104,8 +105,8 @@ class TestSearchHandlerQt():
 
   def test_custom_search(self, qtbot):
     # Setup custom search boxes
-    qtbot.mouseClick(self.prog.addConditionBtn, QtCore.Qt.LeftButton)
-    self.prog.advancedSearchLayout.itemAt(2).widget().setText("Jason Mraz")
+    qtbot.mouseClick(self.prog.searchForm.addConditionBtn, QtCore.Qt.LeftButton)
+    self.prog.searchForm.advancedSearchLayout.itemAt(2).widget().setText("Jason Mraz")
 
     customConditions = self.prog.searchHandler.custom_search()
     assert(isinstance(customConditions, list))
@@ -137,8 +138,8 @@ class TestSearchHandlerQt():
     # assert(result.count('(') == result.count(')'))
 
   def test_generate_mapped_locations(self):
-    self.prog.locationRangeFilter.setText("500")
-    self.prog.locationFilter.setText("Gettysburg, PA, USA")
+    self.prog.searchForm.locationRangeFilter.setText("500")
+    self.prog.searchForm.locationFilter.setText("Gettysburg, PA, USA")
     locations = self.prog.searchHandler.generate_mapped_locations()
 
     assert(len(locations)==14972)
@@ -154,8 +155,8 @@ class TestSearchHandlerQt():
     assert(len(countries) == 607)
 
   def test_perform_search(self):
-    self.prog.artistFilter.setText("Jason Mraz")
-    self.prog.artistFilter.setText("")
+    self.prog.searchForm.artistFilter.setText("Jason Mraz")
+    self.prog.searchForm.artistFilter.setText("")
 
     try:
       self.prog.searchHandler.perform_search()
@@ -164,37 +165,37 @@ class TestSearchHandlerQt():
       pytest.fail(e)
 
     # Check fields were reset
-    assert(self.prog.artistFilter.text() == "")
-    assert(self.prog.genreFilter.text() == "")
-    assert(self.prog.venueFilter.text() == "")
-    assert(self.prog.locationFilter.text() == "")
+    assert(self.prog.searchForm.artistFilter.text() == "")
+    assert(self.prog.searchForm.genreFilter.text() == "")
+    assert(self.prog.searchForm.venueFilter.text() == "")
+    assert(self.prog.searchForm.locationFilter.text() == "")
 
   def test_reset_search_form(self):
     # Add text to boxes
-    self.prog.artistFilter.setText("Artist")
-    self.prog.genreFilter.setText("Genre")
-    self.prog.trackNameFilter.setText("Track Name")
-    self.prog.dateFrom.setDate(QtCore.QDate(1952, 2, 12))
-    self.prog.dateTo.setDate(QtCore.QDate(2014, 2, 12))
-    self.prog.venueFilter.setText("Venue")
-    self.prog.locationFilter.setText("New York City, NYC")
-    self.prog.locationRangeFilter.setText("200")
-    self.prog.countryFilter.setText("USA")
+    self.prog.searchForm.artistFilter.setText("Artist")
+    self.prog.searchForm.genreFilter.setText("Genre")
+    self.prog.searchForm.trackNameFilter.setText("Track Name")
+    self.prog.searchForm.dateFrom.setDate(QtCore.QDate(1952, 2, 12))
+    self.prog.searchForm.dateTo.setDate(QtCore.QDate(2014, 2, 12))
+    self.prog.searchForm.venueFilter.setText("Venue")
+    self.prog.searchForm.locationFilter.setText("New York City, NYC")
+    self.prog.searchForm.locationRangeFilter.setText("200")
+    self.prog.searchForm.countryFilter.setText("USA")
 
     # Call reset function
     self.prog.searchHandler.reset_search_form()
 
     # Assert they were reset as expected
-    assert(len(self.prog.artistFilter.text()) == 0)
-    assert(len(self.prog.genreFilter.text()) == 0)
-    assert(len(self.prog.trackNameFilter.text()) == 0)
-    assert(len(self.prog.venueFilter.text()) == 0)
-    assert(len(self.prog.locationFilter.text()) == 0)
-    assert(len(self.prog.locationRangeFilter.text()) == 0)
-    assert(len(self.prog.countryFilter.text()) == 0)
+    assert(len(self.prog.searchForm.artistFilter.text()) == 0)
+    assert(len(self.prog.searchForm.genreFilter.text()) == 0)
+    assert(len(self.prog.searchForm.trackNameFilter.text()) == 0)
+    assert(len(self.prog.searchForm.venueFilter.text()) == 0)
+    assert(len(self.prog.searchForm.locationFilter.text()) == 0)
+    assert(len(self.prog.searchForm.locationRangeFilter.text()) == 0)
+    assert(len(self.prog.searchForm.countryFilter.text()) == 0)
 
-    assert(self.prog.dateFrom.date() == QtCore.QDate(1950, 1, 1))
-    assert(self.prog.dateTo.date() == QtCore.QDate(2017, 1, 1))
+    assert(self.prog.searchForm.dateFrom.date() == QtCore.QDate(1950, 1, 1))
+    assert(self.prog.searchForm.dateTo.date() == QtCore.QDate(2017, 1, 1))
 
   def test_setup_views(self):
     requestedViews = ['map', 'timeline', 'table']

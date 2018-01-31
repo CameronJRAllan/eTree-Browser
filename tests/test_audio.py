@@ -8,6 +8,7 @@ import application
 import multithreading
 import time
 import qtawesome
+import mock
 
 class SignalStubs(QtCore.QObject):
   update_track_progress = QtCore.pyqtSignal(int)
@@ -183,3 +184,24 @@ class TestAudio():
     self.prog.audioHandler.start_audio_single_link("http://url", 0, test=True)
     assert(self.prog.trackLbl.text() == "Track Name")
     assert(self.prog.audioHandler.isPlaying == True)
+
+  @mock.patch('audio.Audio.fetch_next_track')
+  def test_previous_click_positive(self, arg):
+    self.prog.audioHandler.playlist_index = 3
+    self.prog.audioHandler.previous_click()
+    assert(self.prog.audioHandler.playlist_index == 1)
+
+  @mock.patch('audio.Audio.fetch_next_track')
+  def test_previous_click_negative(self, arg):
+    self.prog.audioHandler.playlist_index = 0
+    self.prog.audioHandler.previous_click()
+    assert(self.prog.audioHandler.playlist_index == -1)
+
+  @mock.patch('audio.Audio.start_audio_thread')
+  def test_track_seek(self, arg):
+    self.prog.audioHandler.track_seek()
+    assert(self.prog.audioHandler.userDragging == False)
+
+  def test_lock_progress_user_drag(self):
+    self.prog.audioHandler.lock_progress_user_drag()
+    assert(self.prog.audioHandler.userDragging == True)

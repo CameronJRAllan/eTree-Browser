@@ -2,6 +2,8 @@ from unittest import TestCase
 import pytest
 import lastfm
 import cache
+import mock
+
 class TestLastFM(TestCase):
   @pytest.fixture(scope="function", autouse=True)
   def setup(self):
@@ -11,6 +13,12 @@ class TestLastFM(TestCase):
   def test_hasSession(self):
     assert(self.lastfmHandler.hasSession() == True)
     assert(self.lastfmHandler.sessionKey == cache.load('last_fm_sessionkey'))
+
+  @mock.patch('cache.save')
+  def test_has_no_session(self, arg):
+    self.lastfmHandler.logout()
+    assert(self.lastfmHandler.hasSession() == False)
+    assert(self.lastfmHandler.sessionKey == None)
 
   def test_setSessionKey(self):
     oldKey = self.lastfmHandler.sessionKey
@@ -47,6 +55,9 @@ class TestLastFM(TestCase):
 
     for singleParameter in parameters:
       assert(singleParameter[0] in url)
+
+  def test_getAPIKey(self):
+    assert(self.lastfmHandler.apiKey == self.lastfmHandler.getAPIKey())
 
 # lastfm_handler = lastfm.lastfm('Key', 'secretSecret')
 # def testhasSession():
