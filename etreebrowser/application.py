@@ -1,31 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# try:
-import sys
-sys.path.append("..")
-import time
-import os
-from PyQt5 import QtCore, QtWidgets, QtGui
-from UI import UI
-import sys
-import lastfm
-import maps
-import sparql
-import cache
-import multithreading
-import audio
-import requests
-import calma
-import export
-import tutorial
-import qtawesome as qta
-from PyQt5.QtWebChannel import QWebChannel
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-import search
-
-# except (ImportError, ModuleNotFoundError) as e:
-#   print('You are missing package: ' + str(e)[15:])
-#   exit(1)
+try:
+  import sys
+  sys.path.append("..")
+  import time
+  import os
+  from PyQt5 import QtCore, QtWidgets, QtGui
+  from UI import UI
+  import sys
+  import lastfm
+  import maps
+  import sparql
+  import cache
+  import multithreading
+  import audio
+  import requests
+  import calma
+  import export
+  import tutorial
+  import qtawesome as qta
+  from PyQt5.QtWebChannel import QWebChannel
+  from PyQt5.QtWebEngineWidgets import QWebEngineView
+  import search
+except (ImportError, ModuleNotFoundError) as e:
+  print('You are missing package: ' + str(e)[15:])
+  print('Quitting ..')
+  exit(1)
 
 class mainWindow(UI):
   def __init__(self, dialog):
