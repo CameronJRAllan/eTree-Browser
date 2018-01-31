@@ -68,7 +68,8 @@ class mainWindow(UI):
     self.audioThreadpool = QtCore.QThreadPool()
 
     # Create map handler and class
-    self.mapsPath = os.path.join(os.getcwd()) + "/html/map.htm"
+    self.absolutePath = os.path.abspath(os.path.dirname(__file__))
+    self.mapsPath = os.path.join(self.absolutePath, "html/map.htm")
     self.latlng = cache.load('locationLatLng')
 
     # If we already have a session key stored for Last.FM
@@ -188,7 +189,7 @@ class mainWindow(UI):
 
     # Set-up web channel between python + JS components
     self.mapChannel = QWebChannel()
-    self.mapHandler = CallHandler()
+    self.mapHandler = CallHandler(self)
     self.mapChannel.registerObject('mapHandler', self.mapHandler)
     widget.page().setWebChannel(self.mapChannel)
 
@@ -990,10 +991,10 @@ class TableHandler():
     # Create a new tab in our table widget
     self.widget = QtWidgets.QWidget()
     self.layout = QtWidgets.QGridLayout(self.widget)
-    self.resultsTable = QtWidgets.QTableWidget(self.widget)
+    self.resultsTable = Table(self.widget) # QtWidgets.QTableWidget(self.widget)
 
   def on_table_scroll(self, value):
-    """
+    """tableHandler
     Starts a new thread for replacing URIs with location labels.
 
     Parameters
@@ -1166,21 +1167,38 @@ class TableHandler():
       self.resultsTable.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
       self.resultsTable.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
       self.layout.setContentsMargins(0,0,0,11)
-
+      #  self.resultsTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
       # Add focus signal handlers
       self.resultsTable.itemClicked.connect(self.prog.searchHandler.view.move_focus)
       self.resultsTable.verticalScrollBar().valueChanged.connect(self.on_table_scroll)
       self.resultsTable.itemDoubleClicked.connect(self.search_table_clicked)
-
+      self.resultsTable.horizontalHeader().setStretchLastSection(True)
       # Get first 5 URI replacements
       self.on_table_scroll(0)
 
       # Add widget to the data view
       self.resultsTable.setParent(self.widget)
       self.layout.addWidget(self.resultsTable, 0, 0, 1, 1)
-      self.resultsTable.setVisible(False)
-      self.resultsTable.resizeColumnsToContents()
-      self.resultsTable.setVisible(True)
+
+      header = self.resultsTable.horizontalHeader()
+      header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+      header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
+      header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
+      header.setSectionResizeMode(3, QtWidgets.QHeaderView.Stretch)
+      header.setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeToContents)
+      # colSpan = {'Performance Title' : 30,
+      #            'Name' : 15,
+      #            'Place' : 15,
+      #            'Location' : 10,
+      #            'Date' : 10,
+      #            'Calma' : 5}
+      #for colIndex in range(0,self.resultsTable.columnCount()):
+
+        # self.resultsTable.setSpan(0, colIndex, 0, 10) # setColumnWidth(colIndex, int(self.resultsTable.width() /
+        # self.resultsTable.columnCount()))
+      # self.resultsTable.setVisible(False)
+      # self.resultsTable.resizeColumnsToContents()
+      # self.resultsTable.setVisible(True)
       self.widget.show()
 
       # self.set_location_width()
@@ -1433,19 +1451,22 @@ class NowPlaying():
 
 # Python-side call handler for communicating between audio player / map and python
 class CallHandler(QtCore.QObject):
+  def __init__(self, app):
+    super().__init__()
+    self.app = app
+
   @QtCore.pyqtSlot(str)
   def mapLinkClicked(self, link):
     tracklist = sparql.get_tracklist(link)
-    prog.user_audio_clicked(tracklist, 0)
+    self.app.user_audio_clicked(tracklist, 0)
 
   @QtCore.pyqtSlot(str, str)
   def map_tracklist_popup(self, link, label):
-
-    prog.searchHandler.view.move_focus(label)
+    self.app.searchHandler.view.move_focus(label)
     popup = "<bold>{0}</bold><br>".format(label)
 
     # Get venue information for this arg
-    geoInfo = prog.sparql.get_venue_information(label)
+    geoInfo = self.app.sparql.get_venue_information(label)
     if geoInfo['lastfm'] is not None:
       popup += geoInfo['lastfm'] # prog.lastfmHandler.get_venue_info(geoInfo['lastfm'])
     else:
@@ -1456,7 +1477,7 @@ class CallHandler(QtCore.QObject):
       popup += "\n {0}".format(self.generate_geoname_html(id))
     else:
       popup += "\n {0}".format("GeoNames data unavailable.")
-    prog.searchHandler.view.mapSearchDialog.page().runJavaScript("setPopup({0},`{1}`)".format(link, popup))
+    self.app.searchHandler.view.mapSearchDialog.page().runJavaScript("setPopup({0},`{1}`)".format(link, popup))
 
   def generate_geoname_html(self, id):
     r = requests.get("http://api.geonames.org/getJSON?geonameId={0}&username={1}".format(id, "Masutatsu"))
@@ -1481,6 +1502,21 @@ class ErrorDialog(QtWidgets.QErrorMessage):
     self.setWindowTitle('Error')
     self.showMessage(self.message)
     self.show()
+
+class Table(QtWidgets.QTableWidget):
+  def __init__(self, parent):
+    super().__init__(parent)
+
+  def resizeEvent(self, event):
+    """ Resize all sections to content and user interactive """
+
+    super(Table, self).resizeEvent(event)
+    header = self.horizontalHeader()
+    for column in range(header.count()):
+      # header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeToContents)
+      # width = header.sectionSize(column)
+      header.setSectionResizeMode(column, QtWidgets.QHeaderView.Interactive)
+      #header.resizeSection(column, width)
 
 if __name__ == '__main__':
   # Create QApplication instance
