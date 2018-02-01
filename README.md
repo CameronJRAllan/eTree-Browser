@@ -1,6 +1,6 @@
-# Project Title
+# Meta-Data for Live Music
 
-First year project supervised by Sean Bechhofer, as part of COMP34100, and centered on meta-data for live music.
+Final year project supervised by Sean Bechhofer, as part of COMP34100, and centered on meta-data for live music.
 
 ## Getting Started
 I recommend using pip to automatically install any dependencies required by the application.
@@ -15,6 +15,7 @@ SPARQLWrapper
 pyaudio    
 qtawesome    
 matplotlib    
+requests    
 
 ### Running the program
 Clone the master branch, and within the directory:
