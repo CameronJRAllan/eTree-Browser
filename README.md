@@ -3,13 +3,13 @@
 Final year project supervised by Sean Bechhofer, as part of COMP34100, and centered on meta-data for live music.
 
 ## Getting Started
-I recommend using pip to automatically install any dependencies required by the application.
+I recommend using pip to install any dependencies required by the application.
 
 ### Prerequisites
 [Python 3](https://www.python.org/download/releases/3.0/)
 
 ### Python package dependencies:    
-PyQt5    
+pyqt5    
 geopy    
 SPARQLWrapper    
 pyaudio    
@@ -18,7 +18,7 @@ matplotlib
 requests    
 
 ### Running the program
-Clone the master branch, and within the directory:
+Clone the master branch, and execute within the directory:
 ```
 python etreebrowser/__init__.py
 ```
@@ -35,7 +35,7 @@ Tests are found in the /test/ folder, and are designed to be run with PyTest and
 
 ## Versioning
 
-This project is yet to reach a stable version and any use should be on the basis of expecting the occasionally blip.
+This project is yet to reach a stable version and any use should be on the basis of expecting the occasional blip.
 
 ## Authors
 
