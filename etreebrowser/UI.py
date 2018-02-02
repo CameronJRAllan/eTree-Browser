@@ -373,7 +373,7 @@ class UI(object):
         self.topMenuTabs.addTab(self.PreferencesTab, "")
         self.tab = QtWidgets.QWidget()
         self.tab.setObjectName("tab")
-        self.topMenuTabs.addTab(self.tab, "")
+        # self.topMenuTabs.addTab(self.tab, "")
         self.verticalLayout.addWidget(self.topMenuTabs)
         self.verticalLayout_2.addLayout(self.verticalLayout)
         MainWindow.setCentralWidget(self.centralwidget)
@@ -426,5 +426,5 @@ class UI(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.prefApplicationTab), _translate("MainWindow", "Application"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.prefLastFMTab), _translate("MainWindow", "Last.FM"))
         self.topMenuTabs.setTabText(self.topMenuTabs.indexOf(self.PreferencesTab), _translate("MainWindow", "Preferences"))
-        self.topMenuTabs.setTabText(self.topMenuTabs.indexOf(self.tab), _translate("MainWindow", "Page"))
+        # self.topMenuTabs.setTabText(self.topMenuTabs.indexOf(self.tab), _translate("MainWindow", "Page"))
 
