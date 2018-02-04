@@ -8,6 +8,7 @@ import cache
 import sys
 import datetime
 import multithreading
+import platform
 
 class View():
   """
@@ -132,7 +133,10 @@ class View():
     self.searchMapHandler = application.MapHandler(self.app, self.mapSearchDialog)
     self.mapSearchDialog.loadFinished.connect(lambda: self.searchMapHandler.add_search_results_map(results))
     # self.mapsPath = os.path.join(os.path.dirname(__file__) + "/maps/map.htm")
-    self.mapSearchDialog.setUrl(QtCore.QUrl("file://" + self.app.mapsPath))
+    if platform.system() == 'Windows':
+      self.app.mapsPath =  ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm').replace('\\', '/'))
+
+    self.mapSearchDialog.setUrl(QtCore.QUrl(self.app.mapsPath))
 
     # Initialize web channel for communication between Python + JS
     self.app.initialize_web_channel(self.mapSearchDialog)
