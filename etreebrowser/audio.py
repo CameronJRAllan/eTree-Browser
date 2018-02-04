@@ -19,8 +19,6 @@ class Audio():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     app : instance
         Main dialog reference.
     """
@@ -40,8 +38,6 @@ class Audio():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     url : str
         The URL of the audio link we wish to play.
     kwargs : {}
@@ -88,7 +84,8 @@ class Audio():
     self.stream = self.pyAudio.open(format=pyaudio.paInt16,
                                     channels=2,
                                     rate=44100,
-                                    output=True)
+                                    output=True,
+                                    output_device_index=self.app.audioOutputCombo.currentIndex())
 
     # Start pipe-line process
     if not kwargs['seek']:
@@ -103,8 +100,6 @@ class Audio():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     seek : int
         The position we wish to began at (where the start is 0).
     """
@@ -152,11 +147,6 @@ class Audio():
   def get_url(self):
     """
     Returns the currently set URL.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     return self.currentUrl
@@ -164,11 +154,6 @@ class Audio():
   def change_play_state(self):
     """
     Either starts of resumes playback of the currently set track URL.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     self.pyAudio = None
@@ -188,8 +173,6 @@ class Audio():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     value : int
         The value (in range 0 to 100) that we wish to set volume to.
     """
@@ -210,8 +193,6 @@ class Audio():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     seekTime : int
         The time we wish to seek to.
     """
@@ -228,11 +209,6 @@ class Audio():
   def next_click(self):
     """
     Goes to the next track.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     self.fetch_next_track()
@@ -241,11 +217,6 @@ class Audio():
   def previous_click(self):
     """
     Goes to the previous track.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     # Fetch_next_track increments by one, so we decrement by two
@@ -260,11 +231,6 @@ class Audio():
     """
     Fetches the next track to be played, depending on user preferences for
     playback behaviour in the queue.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     self.kill_audio_thread()
@@ -278,6 +244,11 @@ class Audio():
     self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
 
   def get_next_track_index(self):
+    """
+    Retrieves the next track index in the playlist to be played, based on
+    desired behaviour by user (i.e. shuffle etc)
+    """
+
     if self.app.repeatCombo.currentText() == 'Repeat All':
       if self.playlist_index <= len(self.playlist) - 1:
         self.playlist_index += 1
@@ -290,7 +261,10 @@ class Audio():
     return self.playlist_index
 
   def send_duration(self, duration):
-    # Update duration of progress bar
+    """
+    Sets duration of the track position slider based on currently playing track
+    """
+
     self.app.trackProgress.setMaximum(duration)
     self.duration = duration
 
@@ -406,8 +380,6 @@ class Audio():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     tracklist : dict
         Dictionary of tracks for a particular release.
     """
@@ -457,11 +429,6 @@ class Audio():
   def track_seek(self):
     """
     Starts a given track at a particular seek time.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
     self.userDragging = False
     self.start_audio_thread(self.get_url(), self.app.trackProgress.value())

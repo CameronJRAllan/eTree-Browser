@@ -8,7 +8,19 @@ import graph
 import view
 import time
 class searchForm():
+  """
+  Initializes an instance of the search form, which contains the search and results tabs.
+  """
   def __init__(self, app, parent=None):
+    """
+    Create an instance of the search form class.
+
+    Parameters
+    ----------
+    app : instance
+        Reference to the main application module.
+    """
+
     # Store reference to main-level tab
     self.app = app
     self.topLevelTab = app.searchTab
@@ -32,6 +44,11 @@ class searchForm():
     self.topLevelTab.setLayout(self.topLevelSearchLayout)
 
   def generate_left_side(self):
+    """
+    Generates the left side of the search form (not the data views, but the search form, results tab
+    and all widgets held within.
+    """
+
     # Create our search form
     self.searchFormVerticalWidget = QtWidgets.QWidget(self.app.searchTab)
     self.searchFormVerticalLayout = QtWidgets.QVBoxLayout(self.searchFormVerticalWidget)
@@ -39,7 +56,7 @@ class searchForm():
 
     self.searchBtn = QtWidgets.QPushButton('Perform Search')
     self.searchFormVerticalLayout.addWidget(self.searchBtn)
-    self.searchBtn.clicked.connect(self.search_button_clicked)
+    # self.searchBtn.clicked.connect(self.search_button_clicked)
     self.searchFormVerticalWidget.setLayout(self.searchFormVerticalLayout)
 
     # Create our results side?
@@ -59,10 +76,12 @@ class searchForm():
 
     return self.leftSideWidget
 
-  def search_button_clicked(self):
-    print('HIT')
-
   def generate_on_this_day(self):
+    """
+    Generates a default view (shown during start-up), of the performance on this day / months
+    in history.
+    """
+
     q = """
         PREFIX etree:<http://etree.linkedmusic.org/vocab/>
         PREFIX mo:<http://purl.org/ontology/mo/>
@@ -94,18 +113,14 @@ class searchForm():
 
     self.app.searchHandler.setup_views(['map', 'table', 'timeline', 'today in history'], results)
     self.app.searchHandler.lastQueryExecuted = q
+
   def generate_right_side(self):
+    """
+    Generates the right side of the search form (data views).
+    """
+
     self.rightSideWidget = QtWidgets.QWidget(self.app.searchTab)
     self.rightSideLayout = QtWidgets.QVBoxLayout()
-
-    # self.mapSearchDialog = QWebEngineView()
-    # self.mapsPath = os.path.join(os.path.dirname(__file__) + "/maps/map.htm")
-    # self.mapSearchDialog.setUrl(QtCore.QUrl("file://" + self.app.mapsPath))
-    # self.rightSideLayout.addWidget(self.mapSearchDialog)
-    # self.debugTableWidget = QtWidgets.QTableWidget()
-    # self.rightSideLayout.addWidget(self.debugTableWidget)
-
-    # self.rightSideWidget.setLayout(self.rightSideLayout)
 
     return self.rightSideWidget
 
@@ -170,13 +185,19 @@ class searchForm():
     self.searchGeneralLayout.addWidget(self.orderByLbl, 5, 1, 1, 1)
     self.searchGeneralLayout.addWidget(self.orderByFilter, 5, 3, 1, 1)
 
-    #  Num results field
+    # Num results field
     self.numResultsLbl = QtWidgets.QLabel('No. Results')
     self.numResultsSpinbox = QtWidgets.QSpinBox()
     self.numResultsSpinbox.setMaximum(10000)
     self.numResultsSpinbox.setProperty("value", 500)
     self.searchGeneralLayout.addWidget(self.numResultsLbl, 6, 1, 1, 1)
     self.searchGeneralLayout.addWidget(self.numResultsSpinbox, 6, 3, 1, 1)
+
+    # CALMA-available only field
+    self.hasCalmaLbl = QtWidgets.QLabel('Has CALMA')
+    self.hasCalmaCheck = QtWidgets.QCheckBox()
+    self.searchGeneralLayout.addWidget(self.hasCalmaLbl, 7, 1, 1, 1)
+    self.searchGeneralLayout.addWidget(self.hasCalmaCheck, 7, 3, 1, 1)
 
     # Set layout to widget
     self.searchGeneralWidget.setLayout(self.searchGeneralLayout)
@@ -238,9 +259,9 @@ class searchForm():
     self.timelineViewChk.setChecked(True)
 
     # Add widgets to layout
-    self.searchViewsLayout.addWidget(self.tableViewChk, 1, 1, 1, 1)
-    self.searchViewsLayout.addWidget(self.mapViewChk, 1, 2, 1, 1)
-    self.searchViewsLayout.addWidget(self.timelineViewChk, 1, 3, 1, 1)
+    # self.searchViewsLayout.addWidget(self.tableViewChk, 1, 1, 1, 1)
+    self.searchViewsLayout.addWidget(self.mapViewChk, 3, 1, 1, 1)
+    self.searchViewsLayout.addWidget(self.timelineViewChk, 5, 1, 1, 1)
 
     # Set layout to widget
     self.searchViewsWidget.setLayout(self.searchViewsLayout)
@@ -304,6 +325,10 @@ class searchForm():
     # Map slider
     if (self.infoWindowWidgets['mapSpan'].value() > 0):
       self.topLevelSearchLayout.itemAt(1).widget().layout().setStretch(1+offset, int(self.infoWindowWidgets['mapSpan'].value()))
+
+  def feature_calma_changed(self, index):
+    if len(self.tracklistView.selectedIndexes()) > 0:
+      self.app.searchHandler.view.graph_calma(self.tracklistView.selectedIndexes()[0])
 
   def create_results_view(self):
     """
@@ -377,6 +402,7 @@ class searchForm():
     self.infoWindowWidgets['toggleKeysSegments'] = QtWidgets.QComboBox()
     self.infoWindowWidgets['toggleKeysSegments'].addItem('Key Changes')
     self.infoWindowWidgets['toggleKeysSegments'].addItem('Segmentation')
+    self.infoWindowWidgets['toggleKeysSegments'].currentIndexChanged.connect(self.feature_calma_changed)
 
     # Create individual tabs
     self.tabWidget = QtWidgets.QTabWidget()
@@ -677,6 +703,7 @@ class SearchHandler():
     limit = self.main.searchForm.numResultsSpinbox.value()
     venue = self.main.searchForm.venueFilter.text()
     trackName = self.main.searchForm.trackNameFilter.text()
+    onlyCalma = self.main.searchForm.hasCalmaCheck.isChecked()
 
     if len(self.main.searchForm.countryFilter.text()) > 0:
       countries = self.get_mapped_countries(self.main.searchForm.countryFilter.text())
@@ -691,7 +718,7 @@ class SearchHandler():
 
     # Generate SPARQL query
     query = self.main.sparql.perform_search(self.main.searchForm.dateFrom.text(), self.main.searchForm.dateTo.text(), artists, genres, locations, limit, trackName,
-                                            countries, customSearchString, venue, orderBy)
+                                            countries, customSearchString, venue, orderBy, onlyCalma)
 
     self.lastQueryExecuted = query
 
@@ -699,9 +726,10 @@ class SearchHandler():
     results = self.main.sparql.execute_string(query)
     # Collect requested views
     requestedViews = []
+    requestedViews.append('table')
     if self.main.searchForm.mapViewChk.isChecked() : requestedViews.append('map')
     if self.main.searchForm.timelineViewChk.isChecked() : requestedViews.append('timeline')
-    if self.main.searchForm.tableViewChk.isChecked() : requestedViews.append('table')
+    # if self.main.searchForm.tableViewChk.isChecked() : requestedViews.append('table')
 
     # Create views
     self.setup_views(requestedViews, results)

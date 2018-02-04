@@ -11,13 +11,14 @@ try:
   import lastfm
   import maps
   import sparql
+  import pyaudio
   import cache
   import multithreading
   import audio
   import requests
   import calma
   import export
-  import tutorial
+  import platform
   import qtawesome as qta
   from PyQt5.QtWebChannel import QWebChannel
   from PyQt5.QtWebEngineWidgets import QWebEngineView
@@ -33,6 +34,12 @@ class mainWindow(UI):
     # UI
     self.setupUi(dialog)
     self.set_tooltips()
+    self.topMenuTabs.widget(0).hide()
+    self.topMenuTabs.widget(4).hide()
+
+    # Set-up OS specific properties
+    self.setup_os_specific_properties()
+    self.add_audio_output_devices()
 
     # Set-up handlers for classes
     self.searchHandler = search.SearchHandler(self)
@@ -45,7 +52,6 @@ class mainWindow(UI):
     self.nowPlayingHandler = NowPlaying(self)
     self.browseTreeProperties = TreePropertiesView(self)
     self.browseListHandler = BrowseListHandler(self)
-    self.tutorialHandler = tutorial.Tutorial(self)
     self.childrenFetched = {}
 
     # Set-up volume controls
@@ -85,11 +91,6 @@ class mainWindow(UI):
       self.lastfmStatus.setText("Connect to Last.FM")
       self.clickable(self.lastfmStatus).connect(self.check_lastfm_status)
 
-    # Create data structure for storing search results
-    self.searchResults = []
-    self.searchesExecuted = 0
-    self.searchTabElements = []
-
     # Set-up signals for message passing
     self.trackProgress.sliderPressed.connect(self.audioHandler.lock_progress_user_drag)
     self.trackProgress.sliderReleased.connect(self.audioHandler.track_seek)
@@ -106,7 +107,6 @@ class mainWindow(UI):
     self.preferredFormatCombo.currentTextChanged.connect(self.preferred_format_changed)
     self.playlist_view.doubleClicked.connect(self.nowplaying_playlist_clicked)
     self.savedSearchesList.doubleClicked.connect(self.searchHandler.load_saved_search)
-    self.runTutorialBtn.clicked.connect(self.tutorialHandler.start_tutorial)
 
     # Set-up debug dialog
     self.debugDialog = DebugDialog()
@@ -130,15 +130,32 @@ class mainWindow(UI):
     self.initialize_history_table()
     self.initialize_most_played()
 
-    # self.searchHandler.add_search_tab_contents()
-
     # Set-up now playing table
     self.nowPlayingHandler.initialize_now_playing()
 
     self.searchForm = search.searchForm(self)
-
     if self.historyonLoadChk.isChecked():
       self.searchForm.generate_on_this_day()
+
+  def setup_os_specific_properties(self):
+    # If windows
+    if platform.system() == 'Windows':
+      self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm').replace('\\', '/'))
+    # If linux
+    elif platform.system() == 'Linux':
+      self.mapsPath = os.path.join(os.path.dirname(__file__) + "/maps/map.htm")
+    # If mac
+    elif platform.system() == 'Darwin':
+      print('detected mac')
+    else:
+      print('error detecting OS')
+
+  def add_audio_output_devices(self):
+    pyAudio = pyaudio.PyAudio()
+    for i in range(0, pyAudio.get_device_count()):
+      self.audioOutputCombo.addItem(pyAudio.get_device_info_by_index(i)['name'])
+      if pyAudio.get_default_output_device_info()['name'] == pyAudio.get_device_info_by_index(i)['name']:
+        self.audioOutputCombo.setCurrentIndex(i)
 
   def initialize_most_played(self):
     self.mostPlayedReleases = {}
@@ -167,6 +184,14 @@ class mainWindow(UI):
       self.mostPlayedReleasesTbl.addItem("{0} ({1})".format(r, self.mostPlayedReleases[r]))
 
   def debug_window_state_changed(self, state):
+    """
+    Hides or displays the debug window depending on whether the check-box is ticked.
+
+    Parameters
+    ----------
+    state : int
+        Signal from the event fired when user changes the state of the tick-box.
+    """
     if state == 2:
       self.debugDialog.show()
     else:
@@ -181,10 +206,8 @@ class mainWindow(UI):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     widget : QWidget
-        Widget parameter.
+        Widget parameter, typically of type QWebEngine.
     """
 
     # Set-up web channel between python + JS components
@@ -199,15 +222,15 @@ class mainWindow(UI):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     item : int
         Index of the item clicked.
     """
 
     # Change format to new preferred
-    index = self.formats.index(item) # self.format_dict[item]
+    index = self.formats.index(item)
     self.formats[index], self.formats[0] = self.formats[0], self.formats[index]
+
+    # Add line to debug dialog
     self.debugDialog.add_line('{0}: set new preferred format to {1}'.format(sys._getframe().f_code.co_name, self.formats[0]))
 
   def append_history_table(self, track, artist, label, url):
@@ -217,8 +240,6 @@ class mainWindow(UI):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     track : str
         Track name.
     artist : str
@@ -229,7 +250,10 @@ class mainWindow(UI):
         URL of the track.
     """
 
+    # Append to history table data structure
     self.track_history.append([track, artist, time.strftime('%Y-%m-%d %H:%M:%S'), label, url])
+
+    # Save and reload in the UI
     cache.save(self.track_history, 'play_history')
     self.initialize_history_table()
 
@@ -237,18 +261,17 @@ class mainWindow(UI):
     """
     Sets up the history table, loading from file store, and adding to
     the table in reverse order.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
+    # Clear previous and load data from backing store
     self.savedSearchesList.clear()
     self.savedSearches = cache.load('savedSearches')
+
+    # Add in reverse order
     for item in reversed(self.savedSearches):
       self.savedSearchesList.addItem(item[0])
 
+    # Clear history table
     self.historyTableWidget.clear()
     self.historyTableWidget.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
     # self.historyTableWidget.doubleClicked.connect(self.history_table_clicked)
@@ -274,20 +297,18 @@ class mainWindow(UI):
         columnIndex += 1
       rowIndex += 1
 
-    # Format table nicely
+    # Format history table nicely
     self.historyTableWidget.setVisible(False)
     self.historyTableWidget.resizeColumnsToContents()
     self.historyTableWidget.setSortingEnabled(True)
     self.historyTableWidget.setVisible(True)
 
-  def history_table_clicked(self, index):
-    row = self.historyTableWidget.row(self.historyTableWidget.itemFromIndex(index))
-
-    for x in reversed(self.track_history):
-      if (x[2] == self.historyTableWidget.item(row, 2).data(2)):
-        self.audioHandler.start_audio_single_link(x[4], 0)
 
   def scrobble_track_lastfm(self):
+    """
+    Sends an API request to Last.FM to record playback of a given track.
+    """
+    print(self.audioHandler.playlist[self.audioHandler.playlist_index])
     try:
       artist = self.sparql.get_artist_from_tracklist(self.audioHandler.playlist[self.audioHandler.playlist_index][2])
       self.lastfmHandler.update_now_playing(artist, self.audioHandler.playlist[self.audioHandler.playlist_index][1])
@@ -301,14 +322,13 @@ class mainWindow(UI):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     inputList : str[]
         The input list providing the model for the auto-completer.
     """
 
     # If the inputList is a dict
     if type(inputList) is type(dict()):
+
       # Convert to list first
       tempList = []
       for key in inputList.keys():
@@ -318,17 +338,13 @@ class mainWindow(UI):
     # Create qCompleter instance with input list
     lineEditCompleter = QtWidgets.QCompleter(inputList)
     lineEditCompleter.setCaseSensitivity(QtCore.Qt.CaseInsensitive)
+
     # Return to be set to the relevant GUI text-box
     return lineEditCompleter
 
   def set_tooltips(self):
     """
     Sets up help tooltips which appear when the user hovers over a particular widget.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     self.repeatCombo.setToolTip("Playback behaviour for after a track finishes")
@@ -353,13 +369,9 @@ class mainWindow(UI):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
-
-    pos : QStandardItem
-        The item the user right clicked on
+    pos : QPoint
+        Relative geometric position in the widget.
     """
-
     self.menu_on_item = pos
     indexes = self.browseTreeView.selectedIndexes()
 
@@ -395,13 +407,9 @@ class mainWindow(UI):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
-
-    index : ?
-      Index in the tree-view clicked.
+    index : QAction
+      Action object based on where in the tree-view clicked.
     """
-
     contextRow = self.browseTreeView.indexAt(self.menu_on_item)
 
     # Process menu options
@@ -427,8 +435,6 @@ class mainWindow(UI):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     associatedWidget : QtWidget
       Widget parameter.
     """
@@ -439,20 +445,32 @@ class mainWindow(UI):
       def eventFilter(self, object, user_event):
         # If this object matches the one we wish to have an action performed on
         if object == associatedWidget:
+
           # If the event was a click, and not another QEvent
           if user_event.type() == QtCore.QEvent.MouseButtonRelease:
+
             # Ensure that the object contains the user event that occured
             if object.rect().contains(user_event.pos()):
+
               # Emit a signal
               self.clickedSignal.emit()
               return True
         return False
 
+    # Create a instance of Filter, passing the widget as argument
     filterOfWidget = Filter(associatedWidget)
+
+    # Apply the event filter (needed to detect when it's 'clicked')
     associatedWidget.installEventFilter(filterOfWidget)
+
+    # Return the signal, to be applied to a slot
     return filterOfWidget.clickedSignal
 
   def lastfm_deauthenticate(self):
+    """
+    Logs a user out of Last.FM integration, and changes UI elements to reflect that.
+    """
+
     self.lastfmHandler.logout()
     self.lastfmBtn.setStyleSheet('')
     self.lastfmStatus.setText("Connect to Last.FM")
@@ -462,12 +480,8 @@ class mainWindow(UI):
     """
     Checks whether we have an existing Last.FM session, and if not,
     initiates authentication with the API.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
+
     # If we do not have a Last.FM session key already
     if self.lastfmHandler.hasSession() == False:
       # Generate token
@@ -512,8 +526,6 @@ class BrowseListHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     type : int
         The index corresponding to the new browse model
     """
@@ -534,11 +546,6 @@ class BrowseListHandler():
   def quick_filter_update(self):
     """
     Provides filter functionality for the browsing models.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     # Get text in filter box
@@ -565,9 +572,6 @@ class BrowseListHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
-
     item : QStandardItem
         The item clicked
     """
@@ -585,8 +589,6 @@ class BrowseListHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     list : str[]
         The input list of items for the model
     model : QStandardItemModel
@@ -603,8 +605,6 @@ class BrowseListHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     dict : dictionary
         The input dictionary of locations for the model
     model : QStandardItemModel
@@ -626,16 +626,13 @@ class BrowseListHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     index : int
-        The index corresponding to the new type order
+        The index corresponding to the new type order requested by user.
     """
 
     types = {}
 
-    # Set the appropriate list and model relative to the
-    # browsing model
+    # Set the appropriate list and model relative to the browsing model
     if self.app.typeBrowseCombo.currentText() == 'Artist':
       self.artistListModel = QtGui.QStandardItemModel()
       type = self.artistListModel
@@ -690,6 +687,15 @@ class TreePropertiesView(QtWidgets.QTreeView):
     return
 
   def get_translation_uri(self):
+    """
+    Returns a list of URI references and corresponding text labels.
+
+    Returns
+    ----------
+    labels : dict
+      Dictionary of URI references and text labels corresponding.
+    """
+
     labels = {'http://www.w3.org/1999/02/22-rdf-syntax-ns#type' : 'Type',
               'http://www.w3.org/2000/01/rdf-schema#seeAlso' : 'See Also',
               'http://purl.org/ontology/mo/performer' : 'Performer',
@@ -716,19 +722,16 @@ class TreePropertiesView(QtWidgets.QTreeView):
 
   def retrieve_properties_subwindow(self, index):
     """
-    Provides a properties view for a given performance.
+    Provides a properties sub (i.e. below root level) view for a given performance.
 
     Parameters
     ----------
-    self : instance
-        Class instance.
-
-    index : int
+    index : QModelIndex
+      Index in the tree structure the user clicked on.
     """
 
     # Get labels dictionary for translation to human-readable formats
     labels = self.get_translation_uri()
-
     if isinstance(index.data(), type(None)):
       return
 
@@ -772,6 +775,21 @@ class TreePropertiesView(QtWidgets.QTreeView):
             e += 1
 
   def retrieve_release_info(self, release):
+    """
+    Provides an initial properties view for a given performance.
+
+    Parameters
+    ----------
+    release : str
+      Name of release we're retrieving properties for.
+
+    Returns
+    ----------
+    self : TreePropertiesView
+      The instance of the class (to be added to a relevant layout).
+
+    """
+
     properties = self.app.sparql.get_release_properties(release)
     self.setParent(self.app.additionalInfoFrame)
     self.treePropertiesModel = QtGui.QStandardItemModel(self)
@@ -783,6 +801,19 @@ class TreePropertiesView(QtWidgets.QTreeView):
     return self
 
   def fill_properties_tree_view(self, model, properties):
+    """
+    Takes a model and a set of properties, groups them together, and adds them to the tree model.
+
+    Parameters
+    ----------
+    model : QStandardItemModel
+      Tree view model for storing data.
+
+    properties : dict
+      Name of release we're retrieving properties for.
+
+    """
+
     labels = self.get_translation_uri()
     treeViewPropertiesDict = self.group_properties(properties)
     for key in sorted(treeViewPropertiesDict.keys()):
@@ -799,6 +830,21 @@ class TreePropertiesView(QtWidgets.QTreeView):
           e += 1
 
   def group_properties(self, properties):
+    """
+    Provides a properties view for a given performance.
+
+    Parameters
+    ----------
+    properties : dict
+      A dictionary of ungrouped properties.
+
+    Returns
+    ----------
+    treeViewPropertiesDict : dict
+      A dictionary of grouped properties.
+
+    """
+
     treeViewPropertiesDict = {}
     for property in properties['results']['bindings']:
       if property['p']['value'] not in treeViewPropertiesDict:
@@ -815,11 +861,6 @@ class BrowseTreeViewHandler():
   def tree_view_filter_update(self):
     """
     Provides filter functionality for the the tree view.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
     try:
       searchStr = self.main.treeViewFilter.text()
@@ -846,8 +887,6 @@ class BrowseTreeViewHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     index : QModelIndex
         The index in the treeview (i.e. the performance), clicked.
     """
@@ -884,8 +923,6 @@ class BrowseTreeViewHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     index : QModelIndex
         The row index clicked by the user.
     """
@@ -994,13 +1031,11 @@ class TableHandler():
     self.resultsTable = Table(self.widget) # QtWidgets.QTableWidget(self.widget)
 
   def on_table_scroll(self, value):
-    """tableHandler
+    """
     Starts a new thread for replacing URIs with location labels.
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     value : int
         The desired row index.
     """
@@ -1018,8 +1053,6 @@ class TableHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     value : int
         The desired row index.
     """
@@ -1040,8 +1073,6 @@ class TableHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     row : int
         The desired row index.
     col : int
@@ -1054,22 +1085,12 @@ class TableHandler():
   def get_table_container(self):
     """
     Returns the table element instance widget.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
     return self.widget
 
   def get_table(self):
     """
     Returns the table element instance.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
     return self.resultsTable
 
@@ -1079,8 +1100,6 @@ class TableHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     results : dict
         Dictionary of results returned from the SPARQL query.
     """
@@ -1097,8 +1116,6 @@ class TableHandler():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     i : int
         Row index.
     c : int
@@ -1110,15 +1127,15 @@ class TableHandler():
       self.resultsTable.setItem(i, c, itemText)
     except IndexError as e:
       self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, "AddTableItem error"))
-
+    except RuntimeError as r:
+      self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, "RunTime error"))
+      pass
   def generate_table_start(self, c, col, columnNames):
     """
     Adds an item to the table view.
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     c : int
         Number of rows for the table.
     col : int
@@ -1147,12 +1164,7 @@ class TableHandler():
 
   def generate_table_end(self):
     """
-    Perform post-processing on table after all the data has been entered.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
+    Performs post-processing on table after all the data has been entered.
     """
 
     try:
@@ -1180,32 +1192,90 @@ class TableHandler():
       self.resultsTable.setParent(self.widget)
       self.layout.addWidget(self.resultsTable, 0, 0, 1, 1)
 
-      header = self.resultsTable.horizontalHeader()
-      header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-      header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
-      header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
-      header.setSectionResizeMode(3, QtWidgets.QHeaderView.Stretch)
-      header.setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeToContents)
-      # colSpan = {'Performance Title' : 30,
-      #            'Name' : 15,
-      #            'Place' : 15,
-      #            'Location' : 10,
-      #            'Date' : 10,
-      #            'Calma' : 5}
-      #for colIndex in range(0,self.resultsTable.columnCount()):
+      self.resultsTable.setColumnWidth(3, 150)
+      self.resultsTable.setColumnWidth(0, 250)
 
-        # self.resultsTable.setSpan(0, colIndex, 0, 10) # setColumnWidth(colIndex, int(self.resultsTable.width() /
-        # self.resultsTable.columnCount()))
-      # self.resultsTable.setVisible(False)
-      # self.resultsTable.resizeColumnsToContents()
-      # self.resultsTable.setVisible(True)
+      self.resultsTable.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+      self.resultsTable.customContextMenuRequested.connect(self.open_table_menu)
+      self.resultsTable.setStyleSheet("QTreeView::item { height: 50px;}")
+
       self.widget.show()
 
-      # self.set_location_width()
       self.prog.debugDialog.add_line("{0}: set final table properties".format(sys._getframe().f_code.co_name))
     except RuntimeError as e:
       print(e)
       return
+
+  def open_table_menu(self, pos):
+    """
+    Called when the user requests a context menu from the tree view.
+
+    Parameters
+    ----------
+    pos : QPoint
+        Relative geometric position in the widget.
+    """
+
+    self.menuOnItem = pos
+    indexes = self.resultsTable.selectedIndexes()
+
+    # Create menu
+    menu = QtWidgets.QMenu()
+    exportFormatMenu = QtWidgets.QMenu("Export Data")
+    menu.triggered.connect(self.table_browse_menu_click)
+
+    # # If performance
+    # if level == 0:
+    menu.addMenu(exportFormatMenu)
+    exportFormatMenu.addAction('JSON')
+    exportFormatMenu.addAction('CSV')
+    exportFormatMenu.addAction('XML')
+    exportFormatMenu.addAction('M3U')
+
+    for c in range(0, self.resultsTable.columnCount()):
+      if self.resultsTable.horizontalHeaderItem(c).text() == 'Calma':
+        if (self.resultsTable.item(indexes[0].row(), c).text()) == 'Y':
+          calmaOptionMenu = QtWidgets.QMenu("CALMA")
+          menu.addMenu(calmaOptionMenu)
+          calmaOptionMenu.addAction('View Segmentation')
+
+    # Map menu to the view-port
+    menu.exec_(self.resultsTable.viewport().mapToGlobal(pos))
+
+  def table_browse_menu_click(self, index):
+    """
+    Processes use of the menu in the tree view.
+
+    Parameters
+    ----------
+    index : QAction
+      Action object based on where in the tree-view clicked.
+    """
+    contextRow = self.resultsTable.indexAt(self.menuOnItem)
+
+    print('Col count: {0}'.format(self.resultsTable.columnCount()))
+    for c in range(0, self.resultsTable.columnCount()):
+      if self.resultsTable.horizontalHeaderItem(c).text() == 'Performance Title':
+        label = self.resultsTable.item(contextRow.row(), c).text()
+        self.exporter = export.Export(self.prog)
+
+        # Process menu options
+        if 'JSON' == index.text():
+          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(),
+                                    'JSON')
+        elif 'CSV' == index.text():
+          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(), 'CSV')
+        elif 'XML' == index.text():
+          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(), 'XML')
+        elif 'M3U' == index.text():
+          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(),  'M3U')
+        elif 'View Segmentation' == index.text():
+          self.view_release_segmentation(label)
+        else:
+          pass
+
+  def view_release_segmentation(self, label):
+    return
 
   def search_table_clicked(self, title):
     searchColumn = None
@@ -1323,34 +1393,12 @@ class TableHandler():
       if self.resultsTable.horizontalHeaderItem(c).text() == 'Location':
         self.resultsTable.setColumnWidth(c, 400)
 
+
 class MapHandler():
   def __init__(self, prog, webEngine):
     self.engine = webEngine
     self.prog = prog
     self.mapsClass = maps.Maps()
-
-  # def get_on_this_day(self):
-  #   homePageSPARQL = """PREFIX etree:<http://etree.linkedmusic.org/vocab/>
-  #                       PREFIX mo:<http://purl.org/ontology/mo/>
-  #                       PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
-  #                       PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
-  #                       PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
-  #                       PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-  #
-  #                       SELECT DISTINCT ?performer ?name ?label  ?place  ?date  WHERE
-  #                       {
-  #                             ?art skos:prefLabel ?label.
-  #                             ?art event:place ?location.
-  #                             ?location etree:location ?place.
-  #                             ?performer foaf:name ?name.
-  #                             ?art etree:date ?date.
-  #                             ?art mo:performer ?performer.
-  #                             FILTER (regex(?date,'""" + time.strftime('-%m-%d') + """',
-  #                             'i'))
-  #                       }  GROUP BY (?prefLabel) LIMIT 100"""
-  #
-  #   homepageResults = self.prog.sparql.execute_string(homePageSPARQL)
-  #   return homepageResults
 
   def add_search_results_map(self, results):
     if results is not None:
@@ -1436,29 +1484,17 @@ class NowPlaying():
     # self.now_playing_layout.addWidget(self.prog.playlist_view)
     # self.prog.nowPlayingTab.setLayout(self.now_playing_layout)
 
-# class TimelineHandler():
-#   def __init__(self, webEngine, main):
-#     self.main = main
-#     self.webEngine = webEngine
-#
-#   def add_points(self, results):
-#     i = 1
-#     for result in results['results']['bindings']:
-#       self.webEngine.page().runJavaScript("""addPoint(`{0}`,`{1}`,`{2}`)""".format(i, result['label']['value'], result['date']['value']))
-#       i += 1
-#
-#     self.webEngine.page().runJavaScript("""addTimeline()""")
-
 # Python-side call handler for communicating between audio player / map and python
 class CallHandler(QtCore.QObject):
   def __init__(self, app):
     super().__init__()
     self.app = app
 
-  @QtCore.pyqtSlot(str)
-  def mapLinkClicked(self, link):
-    tracklist = sparql.get_tracklist(link)
-    self.app.user_audio_clicked(tracklist, 0)
+  # @QtCore.pyqtSlot(str)
+  # def mapLinkClicked(self, link):
+  #   print(link)
+  #   tracklist = sparql.get_tracklist(link)
+  #   self.app.user_audio_clicked(tracklist, 0)
 
   @QtCore.pyqtSlot(str, str)
   def map_tracklist_popup(self, link, label):
@@ -1470,7 +1506,7 @@ class CallHandler(QtCore.QObject):
     if geoInfo['lastfm'] is not None:
       popup += geoInfo['lastfm'] # prog.lastfmHandler.get_venue_info(geoInfo['lastfm'])
     else:
-      popup += "\n {0}".format("<b> Last.FM data unavailable.")
+      popup += "\n {0} <br>".format("<b> Last.FM data unavailable.")
 
     if geoInfo['geoname'] is not None:
       id = geoInfo['geoname'][geoInfo['geoname'].rfind('/') + 1:]
@@ -1506,17 +1542,6 @@ class ErrorDialog(QtWidgets.QErrorMessage):
 class Table(QtWidgets.QTableWidget):
   def __init__(self, parent):
     super().__init__(parent)
-
-  def resizeEvent(self, event):
-    """ Resize all sections to content and user interactive """
-
-    super(Table, self).resizeEvent(event)
-    header = self.horizontalHeader()
-    for column in range(header.count()):
-      # header.setSectionResizeMode(column, QtWidgets.QHeaderView.ResizeToContents)
-      # width = header.sectionSize(column)
-      header.setSectionResizeMode(column, QtWidgets.QHeaderView.Interactive)
-      #header.resizeSection(column, width)
 
 if __name__ == '__main__':
   # Create QApplication instance

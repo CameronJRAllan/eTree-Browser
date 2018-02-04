@@ -7,10 +7,12 @@ import graph
 import cache
 import sys
 import datetime
+import multithreading
 
 class View():
   """
-  This class defines a data view of a SPARQL query search.
+  This class defines a data view of a SPARQL query search. This contains all (of a
+  subset of) a set containing a map, a graph plot and a table.
   """
   def __init__(self, app, search, views, results, hasCalma):
     """
@@ -21,8 +23,6 @@ class View():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     app : instance
         Reference to the main application module.
     search : instance
@@ -31,6 +31,8 @@ class View():
         A list of views requested.
     results : float
         The results of the SPARQL query.
+    hasCalma : boolean
+        Boolean value indicating whether feature analyses are available for this set of results.
     """
     self.app = app
     self.search = search
@@ -40,7 +42,7 @@ class View():
 
     # If no results / error occured, log and return
     if isinstance(results, Exception):
-      errorDialog = application.ErrorDialog(results)
+      self.errorDialog = application.ErrorDialog(results)
       return
 
     # Generate components from user check boxes
@@ -90,15 +92,26 @@ class View():
       return
 
   def add_history_label_view(self):
+    # Calculate current day
     today = datetime.date.today()
+
+    # Add to view layout
     font = QtGui.QFont()
-    # font.setItalic(True)
     font.setPixelSize(18)
     self.historyLabel = QtWidgets.QLabel("Performances through the years, {0}".format(today.strftime("%A %d %B")))
     self.historyLabel.setFont(font)
     self.viewLayout.addWidget(self.historyLabel)
 
   def get_widget(self):
+    """
+    Getter function for the view widget (so that it may be added
+    as the right side of the search tab)
+
+    Returns
+    ----------
+    viewWidget : QWidget
+        Widget instance of the view.
+    """
     return self.viewWidget
 
   def generate_map(self, results):
@@ -110,8 +123,6 @@ class View():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     results : {}
         The results of the SPARQL query.
     """
@@ -120,11 +131,12 @@ class View():
     self.mapSearchDialog = QWebEngineView()
     self.searchMapHandler = application.MapHandler(self.app, self.mapSearchDialog)
     self.mapSearchDialog.loadFinished.connect(lambda: self.searchMapHandler.add_search_results_map(results))
-    self.mapsPath = os.path.join(os.path.dirname(__file__) + "/maps/map.htm")
+    # self.mapsPath = os.path.join(os.path.dirname(__file__) + "/maps/map.htm")
     self.mapSearchDialog.setUrl(QtCore.QUrl("file://" + self.app.mapsPath))
 
     # Initialize web channel for communication between Python + JS
     self.app.initialize_web_channel(self.mapSearchDialog)
+
 
   def generate_plot_view(self):
     """
@@ -132,11 +144,6 @@ class View():
 
     This function is typically called after CALMA data has been retrieved
     and a track has been clicked upon.
-
-    Parameters
-    ----------
-    self : instance
-        Class instance.
     """
 
     self.calmaGraphView = graph.CalmaPlot(600,600,100, self.hasCalma)
@@ -148,8 +155,6 @@ class View():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     results : dict
         Dictionary of search results.
     """
@@ -159,10 +164,21 @@ class View():
     self.tableHandler.fill_table(results)
 
   def save_search(self):
+    """
+    Saves a currently displayed search for future loading.
+    """
+
+    # Retrieve query which generated this view
     query = self.app.searchHandler.lastQueryExecuted
+
+    # Create list containing desired identifier (from text box), and the query
     subList = [self.app.searchForm.infoWindowWidgets['saveEdit'].text(), query]
+
+    # Append to internal list of saved searches and save to backing store
     self.app.savedSearches.append(subList)
     cache.save(self.app.savedSearches, 'savedSearches')
+
+    # Re-load the history / saved searches table to display our newly saved search
     self.app.initialize_history_table()
     #self.app.debugDialog.add_line('{0}: saved new search under name {1}'.format(sys._getframe().f_code.co_name),
     # self.app.searchForm.infoWindowWidgets['saveEdit'].text())
@@ -175,8 +191,6 @@ class View():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     item : QModelIndex
         Index in the tracklist clicked.
     """
@@ -185,30 +199,53 @@ class View():
     try:
       calmaURL = self.tracklistCalma[item.data()]
     # If no calma instance return
-    except KeyError as k:
+    except (KeyError, AttributeError) as k:
       return
 
     # Retrieve and set CALMA data
-    self.calma.set_new_track_calma(calmaURL)
+    # self.calma.set_new_track_calma(calmaURL)
+    try:
+      worker = multithreading.WorkerThread(self.calma.set_new_track_calma, calmaURL)
+      worker.qt_signals.finished.connect(self.calma_set_track_callback_signal)
+      self.app.threadpool.start(worker)
+    except Exception as e:
+      pass
 
+    # Update the widget geometry, showing the plot to the user
+    self.calmaGraphView.updateGeometry()
+
+  def calma_set_track_callback_signal(self):
     # Create a plot of the CALMA data
     if self.app.searchForm.infoWindowWidgets['toggleKeysSegments'].currentText() == "Key Changes":
       self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.keyInfo, self.calma.duration, "key")
     else:
       self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.segmentInfo, self.calma.duration, "segment")
 
-    # Update the widget geometry, showing the plot to the user
-    self.calmaGraphView.updateGeometry()
-
   def update_properties_tab(self):
+    """
+    Updates a set of properties shown to the user.
+    """
+
+    # Create model and get release properties to store
     self.propertiesTabModel = QtGui.QStandardItemModel(self.app.searchForm.propertiesTreeView)
     properties = self.app.sparql.get_release_properties(self.get_label_current_row())
 
+    # If properties are of valid type
     if not isinstance(properties, Exception):
+      # Load data into model and display in the view
       self.app.searchForm.propertiesTreeView.fill_properties_tree_view(self.propertiesTabModel, properties)
       self.app.searchForm.propertiesTreeView.setModel(self.propertiesTabModel)
 
   def get_label_current_row(self):
+    """
+    Retrieve the release name of a clicked row (to allow us to move the focus)
+
+    Returns
+    ----------
+    label of row : str
+      Release name of the row clicked.
+    """
+
     for c in range(0, self.tableHandler.get_table().columnCount()-1):
       try:
         currentRowLabel = self.tableHandler.get_table().item(self.tableHandler.get_table().currentRow(), c).text().lower()
@@ -220,6 +257,15 @@ class View():
         return
 
   def move_focus(self, index):
+    """
+    Retrieve the release name of a clicked row (to allow us to move the focus)
+
+    Parameters
+    ----------
+    index : str / QTableWidgetItem
+      Index reference from event fired after user clicks on map or table.
+    """
+
     # If click was from map
     if isinstance(index, str):
       # Change focus on table
@@ -281,8 +327,8 @@ class View():
 
     Parameters
     ----------
-    self : instance
-        Class instance.
+    text : string
+        The string to be searched for.
     """
 
     # Search table
@@ -291,6 +337,7 @@ class View():
     # Move view to selected item
     if len(results) > 0:
       self.move_focus(str(results[0].row()))
+      self.move_focus(results[0])
 
   def add_tooltips(self):
     self.app.searchForm.tracklistView.setToolTip("Displays a track-list for a given performance, click for CALMA data.")
