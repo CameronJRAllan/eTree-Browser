@@ -73,9 +73,6 @@ class mainWindow(UI):
     self.threadpool = QtCore.QThreadPool()
     self.audioThreadpool = QtCore.QThreadPool()
 
-    # Create map handler and class
-    self.absolutePath = os.path.abspath(os.path.dirname(__file__))
-    self.mapsPath = os.path.join(self.absolutePath, "html/map.htm")
     self.latlng = cache.load('locationLatLng')
 
     # If we already have a session key stored for Last.FM
@@ -143,7 +140,8 @@ class mainWindow(UI):
       self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm').replace('\\', '/'))
     # If linux
     elif platform.system() == 'Linux':
-      self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__) + "/maps/map.htm"))
+      self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm'))
+      # self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__) + "/html/map.htm"))
     # If mac
     elif platform.system() == 'Darwin':
       print('detected mac')
