@@ -65,16 +65,30 @@ class CalmaPlot(FigureCanvas):
     FigureCanvas.updateGeometry(self)
 
   def get_segment_colour_map(self, features):
+    """
+    Generates a colour map for segment features.
+
+    Parameters
+    ----------
+    features : float[]
+        Features information.
+
+    Returns
+    ----------
+    newColourMap : str[]
+        Colour map for each segment type.
+    """
+
     highest = 0
     newColourMap = {}
     colourList = list(self.colourMap.values())
     setFeatures = []
+
     for f in features:
       setFeatures.append(f[1])
     setFeatures = list(set(setFeatures))
 
-    for i in range(1,len(setFeatures)+1):
-      # print('{0}'.format(i))
+    for i in range(0,len(setFeatures)):
       newColourMap[str(i)] = colourList[i]
 
     return newColourMap
@@ -92,6 +106,7 @@ class CalmaPlot(FigureCanvas):
     duration : float
         The duration of the track.
     """
+
     # Replace colour map if needed
     if type == 'segment' : self.colourMap = self.get_segment_colour_map(features)
     if type == 'key' : self.colourMap = self.get_colour_map()

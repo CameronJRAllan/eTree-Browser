@@ -87,6 +87,19 @@ class Calma():
     self.keyInfo = self.get_calma_data(calmaURL, 'key')
     self.segmentInfo = self.get_calma_data(calmaURL, 'segmentation')
     self.loudnessValues = self.get_calma_data(calmaURL, 'loudness')
+    self.duration = self.get_duration_track(calmaURL)
+    kwargs['finished_set_new_track'].emit(self.loudnessValues, self.keyInfo, self.segmentInfo, self.duration)
+
+  def get_duration_track(self, calmaURL):
+    # Check cache for duration
+    try:
+      self.duration = self.calmaCache[calmaURL]['duration']
+    # If not in cache, continue to retrieve duration
+    except (ValueError, KeyError) as v:
+      self.duration = self.retrieve_duration_from_analyses(calmaURL + '/analyses.ttl')
+      self.save_new_calma_cache(calmaURL, 'duration', self.duration)
+
+    return self.duration
 
   def get_calma_data(self, calmaURL, feature):
     """
@@ -100,24 +113,28 @@ class Calma():
         Desired feature, i.e. loudness, key changes or segmentation.
     """
 
-    # Check cache for duration
-    try:
-      self.duration = self.calmaCache[calmaURL]['duration']
-    # If not in cache, continue to retrieve duration
-    except (ValueError, KeyError) as v:
-      self.duration = self.retrieve_duration_from_analyses(calmaURL + '/analyses.ttl')
-      self.save_new_calma_cache(calmaURL, 'duration', self.duration)
-
     # Check cache first for cache
     try:
-      return self.calmaCache[calmaURL][feature]
+      data = self.calmaCache[calmaURL][feature]
+      return data
     # If not in cache, continue to retrieve CALMA data
     except (ValueError, KeyError) as v:
-      pass
+      print(v)
 
-    self.iterate_graph_for_feature(calmaURL, feature)
+    return self.iterate_graph_for_feature(calmaURL, feature)
 
   def iterate_graph_for_feature(self, calmaURL, feature):
+    """
+    Iterates a feature URI for events stored.
+
+    Parameters
+    ----------
+    calmaURL : string
+        CALMA link reference to some feature analyses.
+    feature : string
+        Desired feature, i.e. loudness, key changes or segmentation.
+    """
+
     featureURL = self.get_feature_url(feature)
 
     # Get top-level analysis information
@@ -151,6 +168,17 @@ class Calma():
             return events
 
   def get_feature_events(self, blob, feature):
+    """
+    Takes a blob for analyses and a feature, and returns that feature events.
+
+    Parameters
+    ----------
+    blob : string
+        Blob contained within .bz2 file.
+    feature : string
+        Desired feature, i.e. loudness, key changes or segmentation.
+    """
+
     # Pass blob contents in event extractor function
     if feature == "key":
       return self.retrieve_events_blob(blob, "key")
@@ -162,6 +190,15 @@ class Calma():
       raise ("Feature name error")
 
   def get_feature_url(self, feature):
+    """
+    Takes a feature and returns the object for that feature in the .TTL file.
+
+    Parameters
+    ----------
+    feature : string
+        Desired feature, i.e. loudness, key changes or segmentation.
+    """
+
     if feature == "key":
       return "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-keydetector"
     elif feature == "loudness":
@@ -173,6 +210,22 @@ class Calma():
 
 
   def save_new_calma_cache(self, calmaURL, feature, events):
+    """
+    Saves a new entry in the cache for CALMA data.
+
+    Parameters
+    ----------
+    calmaURL : string
+        URL of the CALMA:DATA link for future reference.
+    feature : list
+        Feature, i.e. loudness, key changes or segmentation.
+    events : list
+        The events to be saved, related with this feature.
+    """
+
+    if events == None:
+      return
+
     if calmaURL not in self.calmaCache:
       self.calmaCache[calmaURL] = {}
     self.calmaCache[calmaURL][feature] = events
@@ -311,6 +364,7 @@ class Calma():
       return self.loudnessValues
       # return True
     except Exception as e:
+      print(e)
       return None
       # return False
 
