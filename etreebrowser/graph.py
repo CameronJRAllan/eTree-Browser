@@ -20,8 +20,6 @@ class CalmaPlot(FigureCanvas):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     weight : int
         The width of the figure to be created.
     height : int
@@ -70,16 +68,13 @@ class CalmaPlot(FigureCanvas):
     highest = 0
     newColourMap = {}
     colourList = list(self.colourMap.values())
-
     setFeatures = []
     for f in features:
       setFeatures.append(f[1])
     setFeatures = list(set(setFeatures))
-    # for f in features:
-    #   if int(float(f[1])) > highest:
-    #     highest = int(float(f[1]))
 
     for i in range(1,len(setFeatures)+1):
+      # print('{0}'.format(i))
       newColourMap[str(i)] = colourList[i]
 
     return newColourMap
@@ -90,8 +85,6 @@ class CalmaPlot(FigureCanvas):
 
     Parameters
     ----------
-    self : instance
-        Class instance.
     loudnessValues : float[]
         An array of loudness / amplitude values.
     features : float[]
@@ -143,7 +136,7 @@ class CalmaPlot(FigureCanvas):
     self.canvasGraph.legend(handles=patches, bbox_to_anchor=(1.00, 1), loc=2, borderaxespad=0, fontsize=7, ncol=2)
     # self.fig.subplots_adjust(left=0.01, right=0.9, top=0.99, bottom=0.9)
     self.fig.subplots_adjust(left=0.00, right=0.85, top=0.95)
-    self.finishDraw()    # self.draw() # Causes tests to crash
+    self.finishDraw()
     self.fig.patch.set_alpha(1.0)
     return
 
@@ -186,10 +179,12 @@ class CalmaPlot(FigureCanvas):
                    'F minor' : 'olive', 'Bb major' : 'lightsteelblue', 'Db major' : 'plum',
                    'Bb minor' : 'mediumspringgreen', 'E minor' : 'lightsalmon',
                    'F# / Gb major' : 'gold', 'F# minor' : 'burlywood'}
-    # If colour not found to match, return grey
+
+    # If colour not found to match, return grey as a last resort
     except KeyError as e:
       print('Unmatched colour: {0}'.format(e))
       return 'Grey'
+
   def pre_processing(self, loudnessValues, duration):
     # Clip
     loudnessValues = loudnessValues[100:-50]

@@ -1,10 +1,10 @@
 from SPARQLWrapper import SPARQLWrapper, JSON, POSTDIRECTLY
 import requests
-from urlextract import URLExtract
 import tarfile
 import rdflib
 import urllib.request
 import traceback
+import cache
 
 class Calma():
   def __init__(self):
@@ -17,17 +17,27 @@ class Calma():
     self.sparql = SPARQLWrapper("http://etree.linkedmusic.org/sparql")
     self.sparql.setReturnFormat(JSON)
     self.sparql.setMethod("POST")
-    self.extractURL = URLExtract()
     self.keyInfo = None
     self.loudnessValues = None
-    self.loudnessInfo = None
+    self.segmentInfo = None
+    # self.calmaCache = {}
+    # cache.save(self.calmaCache, 'calmaCache')
+    self.calmaCache = cache.load('calmaCache')
 
   def get_features_track(self, trackAudioURL):
-    self.keyInfo = None
-    self.loudnessValues = None
-    self.loudnessInfo = None
+    """
+    Take a URL to a audio track, and retrieves any feature analyses information available.
+    Example URL input: http://archive.org/download/dbt2004-05-08.4011s.flac16/dbt2004-05-08d1t02.flac
 
-    # http://archive.org/download/dbt2004-05-08.4011s.flac16/dbt2004-05-08d1t02.flac
+    Parameters
+    ----------
+    trackAudioURL : string
+        Audio URL of track we wish to examine.
+    """
+    # self.keyInfo = None
+    # self.loudnessValues = None
+    # self.loudnessInfo = None
+
     # Get parent sub-event for this track
     self.sparql.setQuery("""
                             PREFIX etree:<http://etree.linkedmusic.org/vocab/>
@@ -39,12 +49,14 @@ class Calma():
                          """.format(trackAudioURL))
 
     subEvent = self.sparql.query().convert()
+
+    # If parent track found, retrieve parent event for said track
     if len(subEvent['results']['bindings']) > 0:
       trackURL = self.sparql.query().convert()['results']['bindings'][0]['s']['value']
     else:
-      print('Returning false, not found')
       return False
 
+    # Try and retrieve CALMA reference
     self.sparql.setQuery("""
                             PREFIX etree:<http://etree.linkedmusic.org/vocab/>
                             PREFIX calma: <http://calma.linkedmusic.org/vocab/>
@@ -57,55 +69,132 @@ class Calma():
 
     # If no calma data found for this URL
     if len(calmaURL['results']['bindings']) == 0:
-      print('Returning false, not found')
       return False
     else:
+      # Extract feature analyses for visualization
       self.set_new_track_calma(calmaURL['results']['bindings'][0]['o']['value'])
       return True
 
-  def set_new_track_calma(self, calmaURL):
+  def set_new_track_calma(self, calmaURL, **kwargs):
+    """
+    Takes a CALMA reference in the data-set and stores all relevant features locally.
+
+    Parameters
+    ----------
+    calmaURL : string
+        CALMA link reference to some feature analyses.
+    """
     self.keyInfo = self.get_calma_data(calmaURL, 'key')
     self.segmentInfo = self.get_calma_data(calmaURL, 'segmentation')
-    self.loudnessInfo = self.get_calma_data(calmaURL, 'loudness')
+    self.loudnessValues = self.get_calma_data(calmaURL, 'loudness')
 
   def get_calma_data(self, calmaURL, feature):
-    if feature == "key":
-      featureURL = "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-keydetector"
-    elif feature == "loudness":
-      featureURL = "http://vamp-plugins.org/rdf/plugins/vamp-libxtract#loudness"
-    elif feature == "segmentation":
-      featureURL = "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-segmenter_output_segmentation"
-    else:
-      raise("feature variable / parameter error")
+    """
+    Takes a CALMA reference in the data-set and stores all relevant features locally.
+
+    Parameters
+    ----------
+    calmaURL : string
+        CALMA link reference to some feature analyses.
+    feature : string
+        Desired feature, i.e. loudness, key changes or segmentation.
+    """
+
+    # Check cache for duration
+    try:
+      self.duration = self.calmaCache[calmaURL]['duration']
+    # If not in cache, continue to retrieve duration
+    except (ValueError, KeyError) as v:
+      self.duration = self.retrieve_duration_from_analyses(calmaURL + '/analyses.ttl')
+      self.save_new_calma_cache(calmaURL, 'duration', self.duration)
+
+    # Check cache first for cache
+    try:
+      return self.calmaCache[calmaURL][feature]
+    # If not in cache, continue to retrieve CALMA data
+    except (ValueError, KeyError) as v:
+      pass
+
+    self.iterate_graph_for_feature(calmaURL, feature)
+
+  def iterate_graph_for_feature(self, calmaURL, feature):
+    featureURL = self.get_feature_url(feature)
 
     # Get top-level analysis information
     url = calmaURL + '/analyses.ttl'
-    self.duration = self.retrieve_duration_from_analyses(url)
-
     r = requests.get(url, stream=True)
     g = rdflib.Graph()
     g.parse(r.raw, format="n3")
 
-    # Get blob information for key changes
+    # Iterate graph
     for subject, predicate, obj in g:
+
+      # If matching object reference found
       if str(obj) == featureURL:
+
+        # Retrieve URL referenced in this object
         r = requests.get(str(subject), stream=True)
         g = rdflib.Graph()
         g.parse(r.raw, format="n3")
+
+        # Iterate to find BLOB for this feature
         for subject, predicate, obj in g:
           if str(predicate) == 'http://calma.linkedmusic.org/vocab/feature_blob':
             # Get blob contents
             g = rdflib.Graph()
             blobContents = self.extract_zip(obj)
 
-            if feature == "key":
-              return self.retrieve_events_blob(blobContents, "key")
-            if feature == "segmentation":
-              return self.retrieve_events_blob(blobContents, "segment")
-            elif feature == "loudness":
-              self.retrieve_loudness_from_blob(blobContents)
+            events = self.get_feature_events(blobContents, feature)
+
+            self.save_new_calma_cache(calmaURL, feature, events)
+
+            return events
+
+  def get_feature_events(self, blob, feature):
+    # Pass blob contents in event extractor function
+    if feature == "key":
+      return self.retrieve_events_blob(blob, "key")
+    elif feature == "segmentation":
+      return self.retrieve_events_blob(blob, "segment")
+    elif feature == "loudness":
+      return self.retrieve_loudness_from_blob(blob)
+    else:
+      raise ("Feature name error")
+
+  def get_feature_url(self, feature):
+    if feature == "key":
+      return "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-keydetector"
+    elif feature == "loudness":
+      return "http://vamp-plugins.org/rdf/plugins/vamp-libxtract#loudness"
+    elif feature == "segmentation":
+      return "http://vamp-plugins.org/rdf/plugins/qm-vamp-plugins#qm-segmenter_output_segmentation"
+    else:
+      raise("Feature variable / parameter error")
+
+
+  def save_new_calma_cache(self, calmaURL, feature, events):
+    if calmaURL not in self.calmaCache:
+      self.calmaCache[calmaURL] = {}
+    self.calmaCache[calmaURL][feature] = events
+    cache.save(self.calmaCache, 'calmaCache')
 
   def retrieve_events_blob(self, blob, featureType):
+    """
+    Takes a blob of CALMA data, and a feature desired, and returned a structured set of
+    chronological events for that feature.
+
+    Parameters
+    ----------
+    blob : string
+        RDF data for some feature.
+    featureType : string
+        Desired feature, i.e. loudness, key changes or segmentation.
+
+    Returns
+    ----------
+    events : list
+      List of events in chronological order.
+    """
     g = rdflib.Graph()
     g.parse(data=blob, format="n3")
 
@@ -120,7 +209,9 @@ class Calma():
         # Truncate to remove local file reference
         subject = subject[subject.find("event"):]
         dictKey = {}
+
         for index in tripleList:
+
           # Fetch predicate information
           q = """
               PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
@@ -149,23 +240,17 @@ class Calma():
 
     return events
 
-    # Extract relevant information in blob
-    # eventList = {}
-    # for subject in g.subjects():
-    #   for object in g.objects(subject=subject):
-    #
-    #     # Add to dictionary of events, times and labels
-    #     if str(subject) not in eventList and 'file://' in str(subject):
-    #       eventList[str(subject)] = []
-    #     if 'file://' in str(subject):
-    #       if type(object) == rdflib.term.BNode:
-    #         for obj_2 in g.objects(subject=object): eventList[str(subject)].append(str(obj_2))
-    #       else:
-    #         eventList[str(subject)].append(str(object))
-    #
-    # return self.tidy_key_change(eventList)
-
   def retrieve_duration_from_analyses(self, analysesURL):
+    """
+    Takes an analyses URL and returns the duration of that track as specified within the
+    feature data.
+
+    Parameters
+    ----------
+    analysesURL : string
+        URl of a given CALMA feature set
+    """
+
     blob = requests.get(analysesURL).text
     g = rdflib.Graph()
     g.parse(data=blob, format="n3")
@@ -204,65 +289,67 @@ class Calma():
         q = str(q)
         return float(q[q.find('PT') + 2:q.find('S')])
 
-        # analysesURL = requests.get(analysesURL).text
-    # analysesURL = analysesURL[analysesURL.find("mo:encodes ")+len("mo:encodes \""):]
-    # analysesURL = analysesURL[:analysesURL.find('>')+1:]
-    #
-    # ttl = requests.get(analysesURL).text
-    #
-    # startIndex = ttl.find("tl:duration \"PT")+len("tl:duration \"PT")
-    # endIndex = ttl.find("\"^^xsd:duration")+len("\"^^xsd:duration")
-    #
-    # self.duration = ttl[startIndex:endIndex].replace("""S"^^xsd:duration""",'')
-    # self.duration = float(self.duration)
-    # return self.duration
-
   def retrieve_loudness_from_blob(self, blob):
+    """
+    Takes an analyses URL and returns the loudness of that track as specified within the
+    feature data.
+
+    Parameters
+    ----------
+    blob : string
+        Blob contents as a string, typically RDF format.
+
+    Returns
+    ----------
+    hasLoudness : boolean
+        Boolean indicating whether the track has valid loudness values available.
+    """
+
     try:
       self.loudnessValues = blob[blob.find("af:value \"")+11:-4].strip().split(" ")
       self.loudnessValues = [float(l) for l in self.loudnessValues]
-      return True
+      return self.loudnessValues
+      # return True
     except Exception as e:
-      traceback.print_exc()
-      return False
-
-  # def tidy_key_change(self, dict):
-  #   # Remove duplicates
-  #   for key in dict.keys():
-  #     dict[key] = list(set(dict[key]))
-  #     temp = list(set(dict[key]))
-  #     temp = [x for x in temp if not '://' in x]
-  #     dict[key] = temp
-  #
-  #   finalList = []
-  #   # Re-create list using consistent formatting
-  #   for key in dict.keys():
-  #     # If sub-list has a length we were expecting
-  #     if len(dict[key]) == 3:
-  #       subList = []
-  #       # For each item in the sub-list
-  #       for subItem in list(set(dict[key])):
-  #         # If this is a time of a key change
-  #         if subItem[:2] == 'PT':
-  #           subList.insert(0, float(subItem.replace('PT', '').replace('S', '')))
-  #         # If this is the key change label
-  #         if 'minor' in subItem or 'major' in subItem:
-  #           subList.insert(1, subItem)
-  #       # If correct length
-  #       if len(subList) == 2:
-  #         finalList.append(subList)
-  #
-  #   # Sort by time
-  #   finalList.sort(key=lambda x: x[0])
-  #   return finalList
+      return None
+      # return False
 
   def get_key_at_time(self, time):
+    """
+    Takes as input a time, and checks to see whether a key is available at this time.
+
+    Parameters
+    ----------
+    time : int
+        Current time of track played.
+
+    Returns
+    ----------
+    key : string
+      Key in event closest to this input time.
+    """
+
     if self.keyInfo and time >= 0:
       return (min(self.keyInfo, key=lambda x:abs(x[0]-time))[1])
     else:
       return None
 
   def extract_zip(self, zipURL):
+    """
+    Takes a blob of CALMA data, and a feature desired, and returned a structured set of
+    chronological events for that feature.
+
+    Parameters
+    ----------
+    zipURL : string
+        URL of a .zip of .bz2 file containing blob information.
+
+    Returns
+    ----------
+    contents : string
+      Contents of first file in ZIP URL provided.
+    """
+
     # Download .bz2 file to tmp directory
     file_name, headers = urllib.request.urlretrieve(zipURL)
 
@@ -275,6 +362,3 @@ class Calma():
 
     # Return the contents of the file, decoding the byte stream to UTF-8
     return contents.decode("utf-8")
-
-if __name__ == "__main__":
-    calma = Calma()

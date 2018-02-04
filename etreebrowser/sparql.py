@@ -1,6 +1,9 @@
 from SPARQLWrapper import SPARQLWrapper, JSON, POSTDIRECTLY
 import datetime
 import urllib
+from PyQt5 import QtWidgets
+import calma
+import graph
 
 class SPARQL():
   def __init__(self):
@@ -271,7 +274,7 @@ class SPARQL():
     else:
       return ''
 
-  def perform_search(self, dateFrom, dateTo, artists, genres, locations, limit, trackName, countries, customSearchString, venue, orderBy):
+  def perform_search(self, dateFrom, dateTo, artists, genres, locations, limit, trackName, countries, customSearchString, venue, orderBy, onlyCalma):
     """
     Executes a basic search on the SPARQL end-point.
 
@@ -327,8 +330,12 @@ class SPARQL():
      ?location etree:location ?place.
      ?art event:hasSubEvent ?subEvent
      OPTIONAL {?performer etree:mbTag ?genre}.
-     OPTIONAL {?subEvent calma:data ?calma}.
      """
+
+    if onlyCalma:
+      whereString += "\n ?subEvent calma:data ?calma."
+    else:
+      whereString += "\n OPTIONAL {?subEvent calma:data ?calma}."
 
     # if customConditionType == 'AND':
     if isinstance(customSearchString, list):

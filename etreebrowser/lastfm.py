@@ -24,7 +24,6 @@ class lastfmAPI():
     parameters.append(['timestamp', str(time.time() - 30)])
     parameters.append(['track', track])
     url = self.generate_api_request(parameters, self.sharedSecret)
-
     r = requests.post(url, None)
     if r.status_code != 200:
       raise ValueError(str((r.status_code)))
@@ -78,7 +77,7 @@ class lastfmAPI():
       print('Error: ' + str(r.status_code) + '\n' + str(r.text))
 
   def get_similar_artists(self, artistName):
-    url = """http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&autocorrect=1&artist= """ + artistName.strip()\
+    url = """http://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&autocorrect=1&artist= """ + artistName.strip().replace(' ', '%20') \
           + \
           '&api_key=' + self.apiKey + '&format=json'
 
@@ -97,7 +96,7 @@ class lastfmAPI():
     url = """http://ws.audioscrobbler.com/2.0/?method=artist.getInfo&autocorrect=1&artist= """ + artistName.strip() \
           + \
           '&api_key=' + self.apiKey + '&format=json'
-
+    print(url)
     r = requests.post(url)
     if r.status_code == 200:
       r_json = json.loads(r.text)

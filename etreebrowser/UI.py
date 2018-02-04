@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'development-resources/Qt UI/UI2018.ui'
 #
-# Created by: PyQt5 UI code generator 5.9.2
+# Created by: PyQt5 UI code generator 5.10
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -337,6 +337,16 @@ class UI(object):
         self.horizontalLayout_6.addWidget(self.preferredFormatCombo)
         self.horizontalLayout_6.setStretch(1, 2)
         self.verticalLayout_4.addLayout(self.horizontalLayout_6)
+        self.horizontalLayout_9 = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_9.setObjectName("horizontalLayout_9")
+        self.audioOutputLbl = QtWidgets.QLabel(self.prefApplicationTab)
+        self.audioOutputLbl.setObjectName("audioOutputLbl")
+        self.horizontalLayout_9.addWidget(self.audioOutputLbl)
+        self.audioOutputCombo = QtWidgets.QComboBox(self.prefApplicationTab)
+        self.audioOutputCombo.setObjectName("audioOutputCombo")
+        self.horizontalLayout_9.addWidget(self.audioOutputCombo)
+        self.horizontalLayout_9.setStretch(1, 2)
+        self.verticalLayout_4.addLayout(self.horizontalLayout_9)
         self.historyonLoadChk = QtWidgets.QCheckBox(self.prefApplicationTab)
         self.historyonLoadChk.setChecked(True)
         self.historyonLoadChk.setObjectName("historyonLoadChk")
@@ -350,9 +360,8 @@ class UI(object):
         self.verticalLayout_4.addWidget(self.runTutorialBtn)
         spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.verticalLayout_4.addItem(spacerItem1)
-        self.verticalLayout_4.setStretch(0, 1)
-        self.verticalLayout_4.setStretch(2, 1)
-        self.verticalLayout_4.setStretch(4, 4)
+        self.verticalLayout_4.setStretch(3, 1)
+        self.verticalLayout_4.setStretch(5, 4)
         self.horizontalLayout_7.addLayout(self.verticalLayout_4)
         spacerItem2 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.horizontalLayout_7.addItem(spacerItem2)
@@ -371,9 +380,6 @@ class UI(object):
         self.lastfmStatus.setObjectName("lastfmStatus")
         self.tabWidget.addTab(self.prefLastFMTab, "")
         self.topMenuTabs.addTab(self.PreferencesTab, "")
-        self.tab = QtWidgets.QWidget()
-        self.tab.setObjectName("tab")
-        self.topMenuTabs.addTab(self.tab, "")
         self.verticalLayout.addWidget(self.topMenuTabs)
         self.verticalLayout_2.addLayout(self.verticalLayout)
         MainWindow.setCentralWidget(self.centralwidget)
@@ -385,7 +391,7 @@ class UI(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.topMenuTabs.setCurrentIndex(0)
+        self.topMenuTabs.setCurrentIndex(4)
         self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -420,11 +426,11 @@ class UI(object):
         self.preferredFormatCombo.setItemText(2, _translate("MainWindow", "FLAC"))
         self.preferredFormatCombo.setItemText(3, _translate("MainWindow", "OGG"))
         self.preferredFormatCombo.setItemText(4, _translate("MainWindow", "SHN"))
+        self.audioOutputLbl.setText(_translate("MainWindow", "Output Device:"))
         self.historyonLoadChk.setText(_translate("MainWindow", "Search For \"On This Day\" On Load"))
         self.debugChk.setText(_translate("MainWindow", "Show Debug Interface"))
         self.runTutorialBtn.setText(_translate("MainWindow", "Run Tutorial"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.prefApplicationTab), _translate("MainWindow", "Application"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.prefLastFMTab), _translate("MainWindow", "Last.FM"))
         self.topMenuTabs.setTabText(self.topMenuTabs.indexOf(self.PreferencesTab), _translate("MainWindow", "Preferences"))
-        self.topMenuTabs.setTabText(self.topMenuTabs.indexOf(self.tab), _translate("MainWindow", "Page"))
 
