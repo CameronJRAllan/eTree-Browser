@@ -143,7 +143,7 @@ class mainWindow(UI):
       self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm').replace('\\', '/'))
     # If linux
     elif platform.system() == 'Linux':
-      self.mapsPath = os.path.join(os.path.dirname(__file__) + "/maps/map.htm")
+      self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__) + "/maps/map.htm"))
     # If mac
     elif platform.system() == 'Darwin':
       print('detected mac')

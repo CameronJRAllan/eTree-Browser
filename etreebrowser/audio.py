@@ -62,7 +62,7 @@ class Audio():
     # Get duration of track
     duration = subprocess.check_output(['ffprobe', '-i', url, '-show_entries', 'format=duration', '-v', 'quiet',
                                         '-of', 'csv=%s' % ("p=0")])
-    duration = str(duration).replace("b'", '').replace("\\n'", '')
+    duration = str(duration).replace("b'", '').replace("\\n", '').replace("\\r", '').replace("'", '')
 
     kwargs["update_track_duration"].emit(float(duration))
 
@@ -181,7 +181,7 @@ class Audio():
     if (value <= 100) and (value >= 0):
 
       # Change system volume using PulseAudio
-      subprocess.call(["amixer", "-D", "pulse", "sset", "Master", str(value) + "%"])
+      subprocess.call(["amixer", "-D", "pulse", "sset", "Master", str(value) + "%"], shell=True)
 
       return True
     else:
