@@ -14,6 +14,7 @@ try:
   import pyaudio
   import cache
   import multithreading
+  import graph
   import audio
   import requests
   import calma
@@ -133,6 +134,57 @@ class mainWindow(UI):
     self.searchForm = search.searchForm(self)
     if self.historyonLoadChk.isChecked():
       self.searchForm.generate_on_this_day()
+
+  def calma_release(self):
+    # Get calma:data reference for each track
+    url = "http://etree.linkedmusic.org/page/performance/DBT2004-11-26.flac16"
+    title = "Drive-By Truckers Live at B&A Warehouse on 2004-11-26"
+
+    calmaLinks = self.sparql.get_calma_reference_release(title)
+    self.calmaData = []
+    e = 0
+    for track in calmaLinks['results']['bindings']:
+      if e < 1:
+        # Setup keyword arguments
+        self.calma = calma.Calma()
+        worker = multithreading.WorkerThread(self.calma.set_new_track_calma, track['calma']['value'])
+        worker.qt_signals.finished_set_new_track.connect(self.callback_set_new_track)
+        self.threadpool.start(worker)
+        e += 1
+    #     calmaSublist = [track['label']['value'],
+    #                     self.calmaHandler.keyInfo,
+    #                     self.calmaHandler.segmentInfo,
+    #                     self.calmaHandler.loudnessValues,
+    #                     self.calmaHandler.duration]
+    #
+    #     self.calmaData.append(calmaSublist)
+    #
+    # # Generate a plot for each
+    # self.calmaReleaseLayout = QtWidgets.QVBoxLayout()
+    # self.graphPlots = []
+    #
+    # self.calmaGraphView = graph.CalmaPlot(600, 600, 100, True)
+    # self.calmaGraphView.plot_calma_data(self.calmaData[0][3], self.calmaData[0][1], self.calmaData[0][4], 'key')
+    # self.calmaGraphView.updateGeometry()
+    #
+    # # i = 0
+    # # for track in self.calmaData:
+    # #   if i < 1:
+    # #     self.graphPlots.append(graph.CalmaPlot(600,600,100,True))
+    # #     self.graphPlots[-1].plot_calma_data(self.calmaData[i][3], self.calmaData[i][1], self.calmaData[i][4], 'key')
+    # #     i += 1
+    #
+    # # Add to layout + widget
+    # #for plot in self.graphPlots:
+    # self.calmaReleaseLayout.addWidget(self.calmaGraphView)
+    # self.calmaReleaseTab.setLayout(self.calmaReleaseLayout)
+
+  def callback_set_new_track(self, loudness, keys, segments, duration):
+    self.calmaGraphView = graph.CalmaPlot(600, 600, 100, True)
+    self.calmaGraphView.plot_calma_data(loudness, keys, duration, "key")
+    self.calmaReleaseLayout = QtWidgets.QVBoxLayout()
+    self.calmaReleaseLayout.addWidget(self.calmaGraphView)
+    self.calmaReleaseTab.setLayout(self.calmaReleaseLayout)
 
   def setup_os_specific_properties(self):
     # If windows
@@ -1273,6 +1325,7 @@ class TableHandler():
           pass
 
   def view_release_segmentation(self, label):
+    self.prog.calma_release()
     return
 
   def search_table_clicked(self, title):

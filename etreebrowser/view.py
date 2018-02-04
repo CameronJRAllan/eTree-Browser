@@ -136,6 +136,7 @@ class View():
     if platform.system() == 'Windows':
       self.app.mapsPath =  ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm').replace('\\', '/'))
 
+    print(self.app.mapsPath)
     self.mapSearchDialog.setUrl(QtCore.QUrl(self.app.mapsPath))
 
     # Initialize web channel for communication between Python + JS
@@ -209,8 +210,9 @@ class View():
     # Retrieve and set CALMA data
     # self.calma.set_new_track_calma(calmaURL)
     try:
+      self.calma = calma.Calma()
       worker = multithreading.WorkerThread(self.calma.set_new_track_calma, calmaURL)
-      worker.qt_signals.finished.connect(self.calma_set_track_callback_signal)
+      worker.qt_signals.finished_set_new_track.connect(self.calma_set_track_callback_signal)
       self.app.threadpool.start(worker)
     except Exception as e:
       pass
@@ -218,12 +220,17 @@ class View():
     # Update the widget geometry, showing the plot to the user
     self.calmaGraphView.updateGeometry()
 
-  def calma_set_track_callback_signal(self):
+  def calma_set_track_callback_signal(self, loudness, keys, segments, duration):
     # Create a plot of the CALMA data
     if self.app.searchForm.infoWindowWidgets['toggleKeysSegments'].currentText() == "Key Changes":
-      self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.keyInfo, self.calma.duration, "key")
+      self.calmaGraphView.plot_calma_data(loudness, keys, duration, "key")
     else:
-      self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.segmentInfo, self.calma.duration, "segment")
+      self.calmaGraphView.plot_calma_data(loudness, segments, duration, "segment")
+
+    # if self.app.searchForm.infoWindowWidgets['toggleKeysSegments'].currentText() == "Key Changes":
+    #   self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.keyInfo, self.calma.duration, "key")
+    # else:
+    #   self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.segmentInfo, self.calma.duration, "segment")
 
   def update_properties_tab(self):
     """
