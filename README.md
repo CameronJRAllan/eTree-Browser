@@ -3,7 +3,7 @@
 Final year project supervised by Sean Bechhofer, as part of COMP34100, and centered on meta-data for live music.
 
 ## Getting Started
-I recommend using pip to install any dependencies required by the application.
+I recommend using virtualenv and pip to install any dependencies required by the application.
 
 ### Prerequisites
 [Python 3](https://www.python.org/download/releases/3.0/)
@@ -17,8 +17,19 @@ qtawesome
 matplotlib    
 requests    
 
+## Installing Dependencies
+Install VirtualEnv (provides a virtual environment for dependencies, rather than installing system-wide)
+```
+python3 -m pip install --user virtualenv
+```
+
+Install dependencies from requirements.txt (if not currently on the git, this file will be in the next 24 hours)
+```
+pip install -r requirements.txt
+```
+
 ### Running the program
-Clone the master branch, and execute within the directory:
+Browse the directory created by the git clone, and run:
 ```
 python etreebrowser/__init__.py
 ```
