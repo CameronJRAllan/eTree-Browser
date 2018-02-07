@@ -23,6 +23,12 @@ Install VirtualEnv (provides a virtual environment for dependencies, rather than
 python3 -m pip install --user virtualenv
 ```
 
+Create a new VirtualEnv (and activate)
+```
+python3 -m virtualenv env
+source env/bin/activate
+```
+
 Install dependencies from requirements.txt (if not currently on the git, this file will be in the next 24 hours)
 ```
 pip install -r requirements.txt
