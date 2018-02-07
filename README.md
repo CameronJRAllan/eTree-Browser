@@ -7,8 +7,11 @@ I recommend using virtualenv and pip to install any dependencies required by the
 
 ### Prerequisites
 [Python 3](https://www.python.org/download/releases/3.0/)
+[FFMPEG](https://www.ffmpeg.org/)
+[PortAudio (Linux / Mac Only)](http://www.portaudio.com/)
 
 ### Python package dependencies:    
+
 pyqt5    
 geopy    
 SPARQLWrapper    
