@@ -1,0 +1,10 @@
+###### META-DATA FOR LIVE MUSIC DEPENDENCY REQUIREMENT FILE ######
+###### Requirements without Version Specifiers ######
+pyqt5
+geopy
+qtawesome
+matplotlib
+sparqlwrapper
+pyaudio
+requests
+#
