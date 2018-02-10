@@ -128,7 +128,7 @@ class CalmaPlot(FigureCanvas):
       self.placeHolderText.remove()
       text = self.fig.text(0.5, 0.65, kwargs['title'], horizontalalignment='center',
                     verticalalignment='center', fontsize=16)
-      text.set_path_effects([path_effects.Stroke(linewidth=3, foreground='black'),
+      text.set_path_effects([path_effects.Stroke(linewidth=2, foreground='white'),
                              path_effects.Normal()])
 
     except (KeyError, ValueError) as v:
