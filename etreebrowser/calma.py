@@ -3,8 +3,10 @@ import requests
 import tarfile
 import rdflib
 import urllib.request
-import traceback
 import cache
+from PyQt5 import QtWidgets, QtCore, QtGui
+import graph
+import multithreading
 
 class Calma():
   def __init__(self):
@@ -88,7 +90,7 @@ class Calma():
     self.segmentInfo = self.get_calma_data(calmaURL, 'segmentation')
     self.loudnessValues = self.get_calma_data(calmaURL, 'loudness')
     self.duration = self.get_duration_track(calmaURL)
-    kwargs['finished_set_new_track'].emit(self.loudnessValues, self.keyInfo, self.segmentInfo, self.duration)
+    kwargs['finished_set_new_track'].emit(self.loudnessValues, self.keyInfo, self.segmentInfo, self.duration, kwargs)
 
   def get_duration_track(self, calmaURL):
     # Check cache for duration
@@ -119,7 +121,7 @@ class Calma():
       return data
     # If not in cache, continue to retrieve CALMA data
     except (ValueError, KeyError) as v:
-      print(v)
+      pass
 
     return self.iterate_graph_for_feature(calmaURL, feature)
 
@@ -208,7 +210,6 @@ class Calma():
     else:
       raise("Feature variable / parameter error")
 
-
   def save_new_calma_cache(self, calmaURL, feature, events):
     """
     Saves a new entry in the cache for CALMA data.
@@ -226,10 +227,14 @@ class Calma():
     if events == None:
       return
 
+    # If no previous features set, create data structure
     if calmaURL not in self.calmaCache:
       self.calmaCache[calmaURL] = {}
+      print('calaURL set for {0}'.format(calmaURL))
+    # Add to cache and save
     self.calmaCache[calmaURL][feature] = events
     cache.save(self.calmaCache, 'calmaCache')
+    # print('Saved for {0}, {1}'.format(calmaURL, feature))
 
   def retrieve_events_blob(self, blob, featureType):
     """
@@ -359,14 +364,32 @@ class Calma():
     """
 
     try:
-      self.loudnessValues = blob[blob.find("af:value \"")+11:-4].strip().split(" ")
-      self.loudnessValues = [float(l) for l in self.loudnessValues]
-      return self.loudnessValues
-      # return True
+      loudnessGraph = rdflib.Graph()
+      q = """
+        PREFIX mo:<http://purl.org/ontology/mo/>
+        PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
+        SELECT DISTINCT ?loudness
+        WHERE {{
+          ?signal af:value ?loudness.
+        }}
+        """
+      loudnessGraph.parse(data=blob, format="n3")
+      qres = loudnessGraph.query(q)
+
+      loudnessSet = False
+      for q in qres:
+        if not loudnessSet:
+          q = str(q)
+          q = q.replace("(rdflib.term.Literal('", "").replace(" '),)", "").split(" ")
+          self.loudnessValues = [float(l) for l in q]
+          loudnessSet = True
+          return self.loudnessValues
+
+        # self.loudnessValues = blob[blob.find("af:value \"")+11:-4].strip().split(" ")
+        # self.loudnessValues = [float(l) for l in self.loudnessValues]
     except Exception as e:
-      print(e)
+      print('Exception: {0}'.format(e))
       return None
-      # return False
 
   def get_key_at_time(self, time):
     """
@@ -416,3 +439,67 @@ class Calma():
 
     # Return the contents of the file, decoding the byte stream to UTF-8
     return contents.decode("utf-8")
+
+class CalmaPlotRelease(QtWidgets.QDialog):
+  def __init__(self, app, title, feature):
+    super().__init__()
+    self.app = app
+    self.calma_release(title, feature)
+    self.setWindowTitle("{0} Analysis of {1}".format(feature.title(), title.title()))
+    self.plotContainerWidget = QtWidgets.QWidget()
+
+  def calma_release(self, title, feature):
+    # Get CALMA references for release
+    calmaLinks = self.app.sparql.get_calma_reference_release(title)
+
+    # Create dialog and layout
+    self.plotLayout = QtWidgets.QVBoxLayout()
+
+    # Create list to store plot objects, and instance variables for looping
+    self.numberCalmaDisplayed = 0
+    self.max = len(calmaLinks['results']['bindings'])
+    self.plots = []
+
+    for track in calmaLinks['results']['bindings']:
+      # Create a CALMA instance, and a new thread to get CALMA + plot
+      self.calma = Calma()
+      kwargs = {'title': track['label']['value'], 'feature': feature, 'release' : True}
+      worker = multithreading.WorkerThread(self.calma.set_new_track_calma, track['calma']['value'], **kwargs)
+      worker.qt_signals.finished_set_new_track.connect(self.callback_set_new_track)
+      self.app.threadpool.start(worker)
+
+  def callback_set_new_track(self, loudness, keys, segments, duration, trackInfo):
+    # If not exceeded number of tracks
+    if self.numberCalmaDisplayed < self.max:
+      # Set correct feature
+      if trackInfo['feature'] == 'key':
+        features = keys
+      else:
+        features = segments
+
+      # Create a new plot and add widget to dialog
+      self.plots.append(graph.CalmaPlot(600, 600, 100, True))
+      self.plots[self.numberCalmaDisplayed].plot_calma_data(loudness, features, duration, trackInfo['feature'], title=trackInfo['title'],
+                                                            release=True)
+      self.plotLayout.addWidget(self.plots[self.numberCalmaDisplayed])
+      self.numberCalmaDisplayed += 1
+
+      # If last track
+      if self.numberCalmaDisplayed == self.max - 1:
+        # Set final properties for dialog & show to user
+        self.plotContainerWidget.setLayout(self.plotLayout)
+
+        # Create scroll area
+        scroll = QtWidgets.QScrollArea()
+        scroll.setWidget(self.plotContainerWidget)
+        scroll.setWidgetResizable(True)
+        scroll.setMinimumWidth(1280)
+        scroll.setMinimumHeight(720)
+
+        # Create scroll layout and add plots
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.addWidget(scroll)
+        self.setLayout(self.layout)
+        scroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+        self.show()

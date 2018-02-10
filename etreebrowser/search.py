@@ -661,7 +661,6 @@ class SearchHandler():
         except ValueError as v:
           print(v)
           pass
-      print(len(locations))
       return locations
     # If only 1 location requested
     elif len(self.main.searchForm.locationFilter.text()) > 0:

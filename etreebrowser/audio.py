@@ -165,7 +165,7 @@ class Audio():
         self.stream.start_stream()
       self.isPlaying = not self.isPlaying
     except AttributeError as e:
-      print('self.Stream not set')
+      pass
 
   def set_volume(self, value):
     """
@@ -203,6 +203,7 @@ class Audio():
 
       # Restart stream at this new time
       self.ffmpeg_pipeline(self.currentUrl, seek=seekTime)
+      return True
     else:
       return False
 

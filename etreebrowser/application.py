@@ -76,6 +76,8 @@ class mainWindow(UI):
 
     self.latlng = cache.load('locationLatLng')
 
+    # self.c = calma.CalmaPlotRelease(self, 'Drive-By Truckers Live at B&A Warehouse on 2004-11-26', 'segmentation')
+
     # If we already have a session key stored for Last.FM
     if self.lastfmHandler.hasSession() == True:
       # Set button to red to indicate this
@@ -135,70 +137,13 @@ class mainWindow(UI):
     if self.historyonLoadChk.isChecked():
       self.searchForm.generate_on_this_day()
 
-  def calma_release(self):
-    # Get calma:data reference for each track
-    url = "http://etree.linkedmusic.org/page/performance/DBT2004-11-26.flac16"
-    title = "Drive-By Truckers Live at B&A Warehouse on 2004-11-26"
-
-    calmaLinks = self.sparql.get_calma_reference_release(title)
-    self.calmaData = []
-    e = 0
-    for track in calmaLinks['results']['bindings']:
-      if e < 1:
-        # Setup keyword arguments
-        self.calma = calma.Calma()
-        worker = multithreading.WorkerThread(self.calma.set_new_track_calma, track['calma']['value'])
-        worker.qt_signals.finished_set_new_track.connect(self.callback_set_new_track)
-        self.threadpool.start(worker)
-        e += 1
-    #     calmaSublist = [track['label']['value'],
-    #                     self.calmaHandler.keyInfo,
-    #                     self.calmaHandler.segmentInfo,
-    #                     self.calmaHandler.loudnessValues,
-    #                     self.calmaHandler.duration]
-    #
-    #     self.calmaData.append(calmaSublist)
-    #
-    # # Generate a plot for each
-    # self.calmaReleaseLayout = QtWidgets.QVBoxLayout()
-    # self.graphPlots = []
-    #
-    # self.calmaGraphView = graph.CalmaPlot(600, 600, 100, True)
-    # self.calmaGraphView.plot_calma_data(self.calmaData[0][3], self.calmaData[0][1], self.calmaData[0][4], 'key')
-    # self.calmaGraphView.updateGeometry()
-    #
-    # # i = 0
-    # # for track in self.calmaData:
-    # #   if i < 1:
-    # #     self.graphPlots.append(graph.CalmaPlot(600,600,100,True))
-    # #     self.graphPlots[-1].plot_calma_data(self.calmaData[i][3], self.calmaData[i][1], self.calmaData[i][4], 'key')
-    # #     i += 1
-    #
-    # # Add to layout + widget
-    # #for plot in self.graphPlots:
-    # self.calmaReleaseLayout.addWidget(self.calmaGraphView)
-    # self.calmaReleaseTab.setLayout(self.calmaReleaseLayout)
-
-  def callback_set_new_track(self, loudness, keys, segments, duration):
-    self.calmaGraphView = graph.CalmaPlot(600, 600, 100, True)
-    self.calmaGraphView.plot_calma_data(loudness, keys, duration, "key")
-    self.calmaReleaseLayout = QtWidgets.QVBoxLayout()
-    self.calmaReleaseLayout.addWidget(self.calmaGraphView)
-    self.calmaReleaseTab.setLayout(self.calmaReleaseLayout)
-
   def setup_os_specific_properties(self):
-    # If windows
+    # If Windows
     if platform.system() == 'Windows':
       self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm').replace('\\', '/'))
-    # If linux
-    elif platform.system() == 'Linux':
-      self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm'))
-      # self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__) + "/html/map.htm"))
-    # If mac
-    elif platform.system() == 'Darwin':
-      print('detected mac')
+    # If Linux or Mac
     else:
-      print('error detecting OS')
+      self.mapsPath = ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm'))
 
   def add_audio_output_devices(self):
     pyAudio = pyaudio.PyAudio()
@@ -358,7 +303,6 @@ class mainWindow(UI):
     """
     Sends an API request to Last.FM to record playback of a given track.
     """
-    print(self.audioHandler.playlist[self.audioHandler.playlist_index])
     try:
       artist = self.sparql.get_artist_from_tracklist(self.audioHandler.playlist[self.audioHandler.playlist_index][2])
       self.lastfmHandler.update_now_playing(artist, self.audioHandler.playlist[self.audioHandler.playlist_index][1])
@@ -1026,7 +970,6 @@ class BrowseTreeViewHandler():
 
   def add_tracks_audiolist(self, releaseData, trackIndex, prefFormat):
     audioList = []
-    print(("{0}, {1}").format(trackIndex, prefFormat))
     for track in releaseData:
       if int(float(track['num']['value'])) >= trackIndex:
         prefUrl = None
@@ -1039,8 +982,6 @@ class BrowseTreeViewHandler():
             # Add to audio list
             audioList.append(track)
             audioList[-1]['audio']['value'] = prefUrl
-      else:
-        print('skipped {0}'.format(track['label']['value']))
 
     return audioList
 
@@ -1113,6 +1054,7 @@ class TableHandler():
             newLabel = self.get_label_for_URI(self.resultsTable.item(rowIndex, columnIndex).text())
             kwargs['update_table_item'].emit(rowIndex, columnIndex, newLabel)
     except AttributeError as a:
+      print(a)
       return
 
   def update_table_item(self, row, col, text):
@@ -1288,6 +1230,7 @@ class TableHandler():
           calmaOptionMenu = QtWidgets.QMenu("CALMA")
           menu.addMenu(calmaOptionMenu)
           calmaOptionMenu.addAction('View Segmentation')
+          calmaOptionMenu.addAction('View Key Changes')
 
     # Map menu to the view-port
     menu.exec_(self.resultsTable.viewport().mapToGlobal(pos))
@@ -1303,7 +1246,6 @@ class TableHandler():
     """
     contextRow = self.resultsTable.indexAt(self.menuOnItem)
 
-    print('Col count: {0}'.format(self.resultsTable.columnCount()))
     for c in range(0, self.resultsTable.columnCount()):
       if self.resultsTable.horizontalHeaderItem(c).text() == 'Performance Title':
         label = self.resultsTable.item(contextRow.row(), c).text()
@@ -1320,13 +1262,11 @@ class TableHandler():
         elif 'M3U' == index.text():
           self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(),  'M3U')
         elif 'View Segmentation' == index.text():
-          self.view_release_segmentation(label)
+          self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'segment')
+        elif 'View Key Changes' == index.text():
+          self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'key')
         else:
           pass
-
-  def view_release_segmentation(self, label):
-    self.prog.calma_release()
-    return
 
   def search_table_clicked(self, title):
     searchColumn = None
@@ -1540,12 +1480,6 @@ class CallHandler(QtCore.QObject):
   def __init__(self, app):
     super().__init__()
     self.app = app
-
-  # @QtCore.pyqtSlot(str)
-  # def mapLinkClicked(self, link):
-  #   print(link)
-  #   tracklist = sparql.get_tracklist(link)
-  #   self.app.user_audio_clicked(tracklist, 0)
 
   @QtCore.pyqtSlot(str, str)
   def map_tracklist_popup(self, link, label):

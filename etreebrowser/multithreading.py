@@ -21,21 +21,32 @@ class WorkerThreadSignals(QtCore.QObject):
         `int` indicating % progress
 
     '''
+
+  # Generic signals, used by many components
   finished = QtCore.pyqtSignal()
-  js_callback = QtCore.pyqtSignal(str, str, str)
-  homepage_end = QtCore.pyqtSignal()
-  homepage_start = QtCore.pyqtSignal()
   error = QtCore.pyqtSignal(tuple)
   result = QtCore.pyqtSignal(object)
   progress = QtCore.pyqtSignal(int)
+
+  # Map interface
+  js_callback = QtCore.pyqtSignal(str, str, str)
+  homepage_end = QtCore.pyqtSignal()
+  homepage_start = QtCore.pyqtSignal()
+
+  # Table interface
   add_table_item = QtCore.pyqtSignal(int, int, object)
   update_table_item  = QtCore.pyqtSignal(int, int, str)
   start_table = QtCore.pyqtSignal(int, int, list)
   end_table = QtCore.pyqtSignal()
+
+  # Audio handler
   update_track_progress = QtCore.pyqtSignal(float)
   track_finished = QtCore.pyqtSignal()
   update_track_duration = QtCore.pyqtSignal(int)
   scrobble_track = QtCore.pyqtSignal()
+
+  # CALMA
+  finished_set_new_track = QtCore.pyqtSignal(object, object, object, float, dict)
 
 class WorkerThread(QtCore.QRunnable):
   '''
@@ -55,9 +66,6 @@ class WorkerThread(QtCore.QRunnable):
 
       Parameters
       ----------
-      self : instance
-          Class instance.
-
       fn : function
         The function to be executed within the worker.
 
@@ -88,6 +96,8 @@ class WorkerThread(QtCore.QRunnable):
     kwargs['update_track_progress'] = self.qt_signals.update_track_progress
     kwargs['update_track_duration'] = self.qt_signals.update_track_duration
     kwargs['scrobble_track'] = self.qt_signals.scrobble_track
+    kwargs['finished'] = self.qt_signals.finished
+    kwargs['finished_set_new_track'] = self.qt_signals.finished_set_new_track
 
   @QtCore.pyqtSlot()
   def run(self):
@@ -96,11 +106,6 @@ class WorkerThread(QtCore.QRunnable):
 
       Retrieve the arguments and keyword arguments 'kwargs' and use them to start processing, sending signals when
       required
-
-      Parameters
-      ----------
-      self : instance
-          Class instance.
     '''
 
     # Try executing the thread
@@ -110,7 +115,6 @@ class WorkerThread(QtCore.QRunnable):
       # Print the traceback of the error that occured
       traceback.print_exc()
       executionType, errorValue = sys.exc_info()[:2]
-
       # Emit the error so that main program is made aware
       self.qt_signals.error.emit((executionType, errorValue, traceback.format_exc()))
     else:
