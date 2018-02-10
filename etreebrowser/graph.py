@@ -1,10 +1,11 @@
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatch
 import numpy as np
 import operator
+import matplotlib.patheffects as path_effects
 
 class CalmaPlot(FigureCanvas):
   """
@@ -29,7 +30,7 @@ class CalmaPlot(FigureCanvas):
     """
 
     # Create Figure instance (which stores our plots)
-    self.fig = Figure(figsize=(width, height), dpi=dpi, edgecolor='blue')
+    self.fig = Figure(figsize=(2, 2), dpi=dpi, edgecolor='blue')
 
     # Add an initial plot to our figure
     self.canvasGraph = self.fig.add_subplot(111)
@@ -63,6 +64,7 @@ class CalmaPlot(FigureCanvas):
     # Resize with window
     FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
     FigureCanvas.updateGeometry(self)
+    self.setMinimumSize(self.size())
 
   def get_segment_colour_map(self, features):
     """
@@ -79,21 +81,31 @@ class CalmaPlot(FigureCanvas):
         Colour map for each segment type.
     """
 
-    highest = 0
-    newColourMap = {}
-    colourList = list(self.colourMap.values())
-    setFeatures = []
+    hashList = {'1' : 'Grey',
+                 '2':'Red',
+                  '3':'Green',
+                  '4':'greenyellow',
+                  '5':'Pink',
+                  '6':'Orange',
+                  '7':'goldenrod',
+                  '8':'indianred',
+                  '9':'peachpuff',
+                  '10':'deepskyblue',
+                  '11':'firebrick',
+                  '12':'orchid',
+                  '13': 'moccasin',
+                  '14':'slateblue',
+                  '15':'turquoise',
+                  '16':'tomato',
+                  '17':'darkmagenta',
+                  '18':'olivedrab'}
+    # 'olive', 'lightsteelblue',
+    # 'plum', 'mediumspringgreen',
+    # 'lightsalmon', 'gold', 'burlywood']
 
-    for f in features:
-      setFeatures.append(f[1])
-    setFeatures = list(set(setFeatures))
+    return hashList
 
-    for i in range(0,len(setFeatures)):
-      newColourMap[str(i)] = colourList[i]
-
-    return newColourMap
-
-  def plot_calma_data(self, loudnessValues, features, duration, type):
+  def plot_calma_data(self, loudnessValues, features, duration, type, **kwargs):
     """
     Takes CALMA data for a single track as input, and creates a plot.
 
@@ -112,7 +124,15 @@ class CalmaPlot(FigureCanvas):
     if type == 'key' : self.colourMap = self.get_colour_map()
 
     # Hide placeholder text if visible
-    self.placeHolderText.set_text('')
+    try:
+      self.placeHolderText.remove()
+      text = self.fig.text(0.5, 0.65, kwargs['title'], horizontalalignment='center',
+                    verticalalignment='center', fontsize=16)
+      text.set_path_effects([path_effects.Stroke(linewidth=3, foreground='black'),
+                             path_effects.Normal()])
+
+    except (KeyError, ValueError) as v:
+      self.placeHolderText.set_text('')
 
     # Perform pre-processing
     nploudnessValues, duration, xSpaced, average = self.pre_processing(loudnessValues, duration)
@@ -149,9 +169,14 @@ class CalmaPlot(FigureCanvas):
       patches.append(patch)
 
     self.canvasGraph.legend(handles=patches, bbox_to_anchor=(1.00, 1), loc=2, borderaxespad=0, fontsize=7, ncol=2)
-    # self.fig.subplots_adjust(left=0.01, right=0.9, top=0.99, bottom=0.9)
     self.fig.subplots_adjust(left=0.00, right=0.85, top=0.95)
-    self.finishDraw()
+
+    try:
+      kwargs['release']
+    except KeyError as v:
+      # Causes crash with multiple plots
+      self.finishDraw()
+
     self.fig.patch.set_alpha(1.0)
     return
 

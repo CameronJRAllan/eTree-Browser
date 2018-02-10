@@ -10,12 +10,33 @@ class SPARQL():
     """
     Initializes an instance of the SPARQL class.
 
-    The SPARQL class is used for all interfacing with the SPARQL end-point provided by Sean Bechhofer's research and work.
+    The SPARQL class is used for all interfacing with the SPARQL end-point provided from Sean Bechhofer's research and work.
 
     """
     self.sparql = SPARQLWrapper("http://etree.linkedmusic.org/sparql")
     self.sparql.setReturnFormat(JSON)
     self.sparql.setMethod("POST")
+
+  def get_calma_reference_release(self, releaseName):
+    queryString = """
+            PREFIX etree:<http://etree.linkedmusic.org/vocab/>
+            PREFIX mo:<http://purl.org/ontology/mo/>
+            PREFIX event:<http://purl.org/NET/c4dm/event.owl#>
+            PREFIX skos:<http://www.w3.org/2004/02/skos/core#>
+            PREFIX rdf:<http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX calma: <http://calma.linkedmusic.org/vocab/>
+
+            SELECT DISTINCT ?label ?calma {{
+              ?perf event:hasSubEvent ?tracklist.
+              ?tracklist skos:prefLabel ?label.
+              ?tracklist etree:number ?num.
+              ?perf rdf:type mo:Performance.
+              ?perf skos:prefLabel "{0}".
+              ?tracklist calma:data ?calma.
+            }} ORDER BY ?num 
+            """.format(releaseName)
+    self.sparql.setQuery(queryString)
+    return self.sparql.query().convert()
 
   def get_release_properties(self, releaseName):
     """
@@ -399,6 +420,7 @@ class SPARQL():
         {10}
         """.format(whereString, artistString, genreString, locationString, venueString, dateString, trackString, customSearchString,
                    countriesString, orderByString, limit)
+    print(q)
     return q
 
   def get_venue_information(self, label):

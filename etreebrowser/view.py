@@ -30,7 +30,7 @@ class View():
         Reference to the searchHandler instance.
     views : str[]
         A list of views requested.
-    results : float
+    results : {}
         The results of the SPARQL query.
     hasCalma : boolean
         Boolean value indicating whether feature analyses are available for this set of results.
@@ -40,6 +40,10 @@ class View():
     self.calma = calma.Calma()
     self.hasCalma = hasCalma
     self.views = views
+
+    self.viewWidget = QtWidgets.QWidget()
+    self.viewLayout = QtWidgets.QVBoxLayout()
+    self.viewWidget.setLayout(self.viewLayout)
 
     # If no results / error occured, log and return
     if isinstance(results, Exception):
@@ -52,7 +56,6 @@ class View():
       if v == 'timeline' : self.generate_plot_view()
       if v == 'table' : self.generate_table(results)
 
-    self.viewLayout = QtWidgets.QVBoxLayout()
 
     # Check seperately to ensure added in 'correct' order
     if 'today in history' in views: self.add_history_label_view()
@@ -72,9 +75,6 @@ class View():
       self.viewLayout.setStretch(1, 4)
       self.viewLayout.setStretch(2, 10)
       self.viewLayout.setStretch(3, 4)
-
-    self.viewWidget = QtWidgets.QWidget()
-    self.viewWidget.setLayout(self.viewLayout)
 
     # Setup signals post-view creation
     self.app.searchForm.infoWindowWidgets['searchButton'].clicked.connect(self.search_table)
@@ -132,11 +132,10 @@ class View():
     self.mapSearchDialog = QWebEngineView()
     self.searchMapHandler = application.MapHandler(self.app, self.mapSearchDialog)
     self.mapSearchDialog.loadFinished.connect(lambda: self.searchMapHandler.add_search_results_map(results))
-    # self.mapsPath = os.path.join(os.path.dirname(__file__) + "/maps/map.htm")
+
     if platform.system() == 'Windows':
       self.app.mapsPath =  ('file:///' + os.path.join(os.path.dirname(__file__), 'html', 'map.htm').replace('\\', '/'))
 
-    print(self.app.mapsPath)
     self.mapSearchDialog.setUrl(QtCore.QUrl(self.app.mapsPath))
 
     # Initialize web channel for communication between Python + JS
@@ -211,10 +210,12 @@ class View():
     # self.calma.set_new_track_calma(calmaURL)
     try:
       self.calma = calma.Calma()
-      worker = multithreading.WorkerThread(self.calma.set_new_track_calma, calmaURL)
+      kwargs = {'title' : item.data()}
+      worker = multithreading.WorkerThread(self.calma.set_new_track_calma, calmaURL, **kwargs)
       worker.qt_signals.finished_set_new_track.connect(self.calma_set_track_callback_signal)
       self.app.threadpool.start(worker)
     except Exception as e:
+      print(('{0}').format(e))
       pass
 
     # Update the widget geometry, showing the plot to the user
@@ -226,11 +227,6 @@ class View():
       self.calmaGraphView.plot_calma_data(loudness, keys, duration, "key")
     else:
       self.calmaGraphView.plot_calma_data(loudness, segments, duration, "segment")
-
-    # if self.app.searchForm.infoWindowWidgets['toggleKeysSegments'].currentText() == "Key Changes":
-    #   self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.keyInfo, self.calma.duration, "key")
-    # else:
-    #   self.calmaGraphView.plot_calma_data(self.calma.loudnessValues, self.calma.segmentInfo, self.calma.duration, "segment")
 
   def update_properties_tab(self):
     """
