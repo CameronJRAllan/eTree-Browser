@@ -126,6 +126,8 @@ class TestApplication():
 
     try:
       self.prog.open_tree_menu(QtCore.QPoint(1,0))
+      assert(isinstance(self.prog.menu, QtWidgets.QMenu))
+      self.prog.menu.close()
     except Exception as e:
       pytest.fail()
 
@@ -134,6 +136,9 @@ class TestApplication():
     item = QtGui.QStandardItem('Collapse')
     self.prog.menu_on_item = QtCore.QPoint(1,0)
     self.prog.tree_browse_menu_click(QtWidgets.QAction("JSON"))
+    self.prog.tree_browse_menu_click(QtWidgets.QAction("CSV"))
+    self.prog.tree_browse_menu_click(QtWidgets.QAction("M3U"))
+    self.prog.tree_browse_menu_click(QtWidgets.QAction("XML"))
 
   @mock.patch('lastfm.lastfmAPI.logout')
   def test_lastfm_deauthenticate(self, arg):
@@ -149,13 +154,21 @@ class TestApplication():
     assert(self.prog.typeOrderByCombo.currentText() == 'Desc')
 
   def test_retrieve_properties_subwindow(self):
-    treeItem = QtGui.QStandardItem("http://etree.linkedmusic.org/track/3df2008-01-10.The_Red_Square_Albany-2")
 
     # Set-up initial release data
     self.prog.browseTreeProperties.retrieve_release_info("3 Dimensional Figures Live at The Red Square on 2008-01-10")
-    self.prog.browseTreeProperties.retrieve_properties_subwindow(treeItem.index())
 
-    assert(self.prog.browseTreeProperties.model().rowCount() == 15)
+    asserted = False
+
+    for i in range(1,self.prog.browseTreeProperties.model().rowCount()):
+      if self.prog.browseTreeProperties.model().index(i, 0).data() == 'Has Sub Event':
+        index = self.prog.browseTreeProperties.model().index(i, 0).child(0, 0)
+
+        self.prog.browseTreeProperties.retrieve_properties_subwindow(index)
+        assert(self.prog.browseTreeProperties.model().index(i, 0).child(0, 0).data() == 'ooh ooh')
+        asserted = True
+
+    if not asserted : pytest.fail()
 
   def test_add_tracks_audiolist(self):
     # Get release data
@@ -189,3 +202,13 @@ class TestApplication():
     self.prog.lastfmHandler.sessionKey = None
     self.prog.check_lastfm_status()
     assert(isinstance(self.prog.browserDialog, QWebEngineView))
+    self.prog.browserDialog.hide()
+
+  @mock.patch('lastfm.lastfmAPI.update_now_playing')
+  def test_scrobble_track_lastfm(self, nowPlaying):
+    self.prog.audioHandler.playlist = ['http://archive.org/download/3df2008-01-10.The_Red_Square_Albany/3df2008-01-10t02.flac',
+                                       'reverb',
+                                       'http://etree.linkedmusic.org/track/3df2008-01-10.The_Red_Square_Albany-2']
+    self.prog.audioHandler.playlist_index = 0
+    self.prog.scrobble_track_lastfm()
+    assert(nowPlaying)

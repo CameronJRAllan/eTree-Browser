@@ -62,17 +62,32 @@ class TestMaps(TestCase):
     assert(self.signalStubs.reached_start == False)
     assert(self.signalStubs.reached_end == False)
     assert(self.signalStubs.callback_recieved == False)
-    self.mapInstance.geoCache.pop("Hidden Club @ Manchester, Test", None)
+    self.mapInstance.geoCache.pop("Hidden Club, Manchester, United Kingdom", None)
 
-    result = {'results' : {'bindings' : [{'label': {'type': 'literal', 'value': 'Test Artist Live at Hidden Club @ Manchester on 2008-03-27'},
+    result = {'results' : {'bindings' : [{'label': {'type': 'literal', 'value': 'Drive-By Truckers Live at Hidden Club on 2008-03-27'},
                                           'name': {'type': 'literal', 'value': 'Test Artist'},
-                                          'place': {'type': 'literal', 'value': 'Test'}}]}}
+                                          'place': {'type': 'literal', 'value': 'Manchester, United Kingdom'}}]}}
 
     self.mapInstance.homepage_add(result, **self.signalStubs.kwargs)
 
     assert(self.signalStubs.reached_start == True)
     assert(self.signalStubs.reached_end == True)
     assert(self.signalStubs.callback_recieved == True)
+
+  def test_add_points_no_place_invalid_location(self):
+    assert(self.signalStubs.reached_start == False)
+    assert(self.signalStubs.reached_end == False)
+    assert(self.signalStubs.callback_recieved == False)
+    self.mapInstance.geoCache.pop("Fake Testing Venue, Qwerty Fake Place", None)
+
+    result = {'results' : {'bindings' : [{'label': {'type': 'literal', 'value': 'Drive-By Truckers Live at Fake Testing Venue on 2008-03-27'},
+                                          'name': {'type': 'literal', 'value': 'Test Artist'},
+                                          'place': {'type': 'literal', 'value': 'Qwerty Fake Place'}}]}}
+
+    self.mapInstance.homepage_add(result, **self.signalStubs.kwargs)
+
+    assert(self.signalStubs.reached_start == True)
+    assert(self.signalStubs.reached_end == True)
 
   def test_add_empty_results(self):
     assert(self.signalStubs.reached_start == False)
@@ -82,3 +97,6 @@ class TestMaps(TestCase):
 
     assert(self.signalStubs.reached_start == True)
     assert(self.signalStubs.reached_end == True)
+
+  def test_process_search_results(self):
+    pytest.fail()

@@ -40,17 +40,22 @@ def test_mock_retrieve_release_info(mocker):
   assert(prog.browseTreeProperties.fill_properties_tree_view.call_count == 1)
 
 def test_advanced_search_fields(qtbot):
+  # Initially, the number of fields should be zero
   assert(prog.searchForm.advancedSearchLayout.count() == 0)
 
+  # Adding a new condition should add 3 widgets into the layout
   qtbot.mouseClick(prog.searchForm.addConditionBtn, QtCore.Qt.LeftButton)
   assert(prog.searchForm.advancedSearchLayout.count() == 3)
 
+  # Adding another
   qtbot.mouseClick(prog.searchForm.addConditionBtn, QtCore.Qt.LeftButton)
   assert(prog.searchForm.advancedSearchLayout.count() == 6)
 
+  # Removing a condition
   qtbot.mouseClick(prog.searchForm.removeConditionBtn, QtCore.Qt.LeftButton)
   assert(prog.searchForm.advancedSearchLayout.count() == 3)
 
+  # Back to our initial state
   qtbot.mouseClick(prog.searchForm.removeConditionBtn, QtCore.Qt.LeftButton)
   assert(prog.searchForm.advancedSearchLayout.count() == 0)
 

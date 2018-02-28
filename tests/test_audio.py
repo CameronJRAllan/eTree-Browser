@@ -65,6 +65,9 @@ class TestAudio():
     # Start main event loop
     self.prog = application.mainWindow(self.dialog)
 
+  def fake_audio_thread(self, arg):
+    return
+
   def test_get_url(self):
     assert(self.audioInstance.get_url() == None)
 
@@ -108,7 +111,10 @@ class TestAudio():
     # Assert failure when no current URL set
     assert(self.audioInstance.set_seek(15) == False)
 
-    # Set URL and now ensure is set correctly
+  @mock.patch('audio.Audio.ffmpeg_pipeline')
+  def test_set_seek_success(self, arg):
+    self.audioInstance.currentUrl = 'http://link.com/'
+    assert(self.audioInstance.set_seek(15) == True)
 
   def test_extract_tracklist_single_format(self):
     sparqlHandler = sparql.SPARQL()
@@ -191,6 +197,44 @@ class TestAudio():
     self.prog.audioHandler.previous_click()
     assert(self.prog.audioHandler.playlist_index == 1)
 
+  @mock.patch('audio.Audio.start_audio_thread')
+  def test_next_click(self, arg):
+    self.prog.audioHandler.playlist_index = 0
+    self.prog.audioHandler.playlist = [['http', 'title'], ['http','title']]
+    self.prog.audioHandler.next_click()
+    assert(self.prog.audioHandler.playlist_index == 1)
+
+  @mock.patch('audio.Audio.start_audio_thread', side_effect=fake_audio_thread)
+  def test_user_audio_clicked(self, arg):
+
+    audioList = [{'audio': {'type': 'uri', 'value': 'http://archive.org/download/3df2008-01-10.The_Red_Square_Albany/3df2008-01-10t01.flac'},
+                  'label': {'type': 'literal', 'value': 'ooh ooh'},
+                  'num': {'type': 'typed-literal', 'datatype': 'http://www.w3.org/2001/XMLSchema#integer', 'value': '1'},
+                  'tracklist': {'type': 'uri', 'value': 'http://etree.linkedmusic.org/track/3df2008-01-10.The_Red_Square_Albany-1'},
+                  'name': {'type': 'literal', 'value': '3 Dimensional Figures'}}
+                 ]
+
+    self.prog.audioHandler.user_audio_clicked(audioList, 0)
+    assert (self.prog.audioHandler.isPlaying == True)
+
+  @mock.patch('audio.Audio.start_audio_thread', side_effect=fake_audio_thread)
+  def test_fetch_next_track(self, arg):
+    audioList = [{'audio': {'type': 'uri', 'value': 'http://archive.org/download/3df2008-01-10.The_Red_Square_Albany/3df2008-01-10t01.flac'},
+                  'label': {'type': 'literal', 'value': 'ooh ooh'},
+                  'num': {'type': 'typed-literal', 'datatype': 'http://www.w3.org/2001/XMLSchema#integer', 'value': '1'},
+                  'tracklist': {'type': 'uri', 'value': 'http://etree.linkedmusic.org/track/3df2008-01-10.The_Red_Square_Albany-1'},
+                  'name': {'type': 'literal', 'value': '3 Dimensional Figures'}},
+                 {'audio': {'type': 'uri', 'value': 'http://archive.org/download/3df2008-01-10.The_Red_Square_Albany/3df2008-01-10t01.flac'},
+                  'label': {'type': 'literal', 'value': 'ooh ooh'},
+                  'num': {'type': 'typed-literal', 'datatype': 'http://www.w3.org/2001/XMLSchema#integer', 'value': '1'},
+                  'tracklist': {'type': 'uri', 'value': 'http://etree.linkedmusic.org/track/3df2008-01-10.The_Red_Square_Albany-1'},
+                  'name': {'type': 'literal', 'value': '3 Dimensional Figures'}}
+                 ]
+
+    self.prog.audioHandler.user_audio_clicked(audioList, 0)
+    self.prog.audioHandler.fetch_next_track()
+    assert (self.prog.audioHandler.playlist_index == 1)
+
   @mock.patch('audio.Audio.fetch_next_track')
   def test_previous_click_negative(self, arg):
     self.prog.audioHandler.playlist_index = 0
@@ -205,3 +249,8 @@ class TestAudio():
   def test_lock_progress_user_drag(self):
     self.prog.audioHandler.lock_progress_user_drag()
     assert(self.prog.audioHandler.userDragging == True)
+
+  def test_send_duration(self):
+    self.prog.audioHandler.send_duration(100)
+    assert (self.prog.trackProgress.maximum() == 100)
+    assert (self.prog.audioHandler.duration == 100)

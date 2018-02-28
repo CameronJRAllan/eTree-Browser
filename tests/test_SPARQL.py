@@ -16,24 +16,24 @@ class TestSPARQL(TestCase):
     validResults = self.sparqlInstance.get_tracklist('Mogwai Live at The Forum on 1999-10-16')
     assert(type(validResults) == type(dict()))
 
-  # def test_getArtistReleases(self):
-  #   # Test that a made up band has no results
-  #   releasesByName = self.sparqlInstance.get_artist_releases('name', 'A Made up Band Name', '', '')
-  #   assert(len(releasesByName['results']['bindings']) == 0)
-  #
-  #   # Test that a real band has some results returned
-  #   releasesByName = self.sparqlInstance.get_artist_releases('name', 'Mogwai', '', '')
-  #   assert(type(releasesByName) == type(dict()))
-  #   assert(len(releasesByName['results']['bindings']) > 0)
-  #
-  #   # Test getting artists matching particular genre:
-  #   releasesByName = self.sparqlInstance.get_artist_releases('genre', 'folktronica', '?genre', '?performer etree:mbTag ?genre.\n')
-  #   assert(type(releasesByName) == type(dict()))
-  #   assert(len(releasesByName['results']['bindings']) > 0)
-  #
-  #   releasesByName = self.sparqlInstance.get_artist_releases('name', ['Mogwai', 'Grateful Dead'], '', '')
-  #   assert(type(releasesByName) == type(dict()))
-  #   assert(len(releasesByName['results']['bindings']) > 0)
+  def test_get_artist_releases(self):
+    # Test that a made up band has no results
+    releasesByName = self.sparqlInstance.get_artist_releases('name', 'A Made up Band Name', '', '')
+    assert(len(releasesByName['results']['bindings']) == 0)
+
+    # Test that a real band has some results returned
+    releasesByName = self.sparqlInstance.get_artist_releases('name', 'Mogwai', '', '')
+    assert(type(releasesByName) == type(dict()))
+    assert(len(releasesByName['results']['bindings']) > 0)
+
+    # Test getting artists matching particular genre:
+    releasesByName = self.sparqlInstance.get_artist_releases('genre', 'folktronica', '?genre', '?performer etree:mbTag ?genre.\n')
+    assert(type(releasesByName) == type(dict()))
+    assert(len(releasesByName['results']['bindings']) > 0)
+
+    releasesByName = self.sparqlInstance.get_artist_releases('name', ['Mogwai', 'Grateful Dead'], '', '')
+    assert(type(releasesByName) == type(dict()))
+    assert(len(releasesByName['results']['bindings']) > 0)
 
   def test_executeString(self):
     assert (isinstance(self.sparqlInstance.execute_string('{{ }}'), Exception))
@@ -131,8 +131,25 @@ class TestSPARQL(TestCase):
     assert(type(validResults) == type(dict()))
 
   def test_perform_search(self):
-    #perform_search(self, dateFrom, dateTo, artists, genres, locations, limit, trackName, countries, customSearchString, venue, orderBy):
+    query = self.sparqlInstance.perform_search("01-01-1950", '01-01-2017', "Grateful Dead", "", None, 50, "", "", "", "", 'Artist', False)
 
-    query = self.sparqlInstance.perform_search("01-01-1950", '01-01-2017', "Grateful Dead", "", None, 50, "", "", "", "", 'Artist')
-    print(query)
+  def test_perform_search_only_calma(self):
+    query = self.sparqlInstance.perform_search("01-01-1950", '01-01-2017', "Grateful Dead", "", None, 50, "", "", "", "", 'Artist', True)
 
+  def test_get_label_tracklist(self):
+    result = self.sparqlInstance.get_label_tracklist('http://etree.linkedmusic.org/track/mogwai1999-10-16.flac16-3')
+    assert(result == "Mogwai Live at The Forum on 1999-10-16")
+
+  def test_get_audio_track(self):
+    result = self.sparqlInstance.get_audio_track('http://etree.linkedmusic.org/track/mogwai1999-10-16.flac16-3')
+    assert(result[0]['label']['value'] == 'May Nothing But Happiness Come Through Your Door')
+
+  def test_get_calma_reference_release(self):
+    result = self.sparqlInstance.get_calma_reference_release('3 Dimensional Figures Live at The Red Square on 2008-01-10')
+    assert(len(result['head']['link']) == 0)
+    assert(len(result['head']['vars']) == 2)
+    assert(len(result['results']['bindings']) == 0)
+
+  def test_get_release_properties(self):
+    result = self.sparqlInstance.get_release_properties('3 Dimensional Figures Live at The Red Square on 2008-01-10')
+    assert(result['head']['vars'] == ['p', 'o'])
