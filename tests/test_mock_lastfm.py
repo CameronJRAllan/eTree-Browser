@@ -45,14 +45,3 @@ def test_request_session_key():
                          body=contents)
 
   lastfmHandler.request_session_key()
-
-@httpretty.activate
-def test_update_now_playing():
-  httpretty.register_uri(
-    httpretty.POST,
-    re.compile("http://ws.audioscrobbler.com/2.0/(\w+)"),
-    status=200,
-  )
-
-  lastfmHandler.update_now_playing('Artist', 'FakeTrack')
-

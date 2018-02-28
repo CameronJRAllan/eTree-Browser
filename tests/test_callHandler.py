@@ -18,7 +18,7 @@ class TestSearchHandlerQt():
     self.prog = application.mainWindow(self.dialog)
 
     # Search handler
-    self.callHandler = application.CallHandler()
+    self.callHandler = application.CallHandler(self.prog)
 
   def test_generate_geoname_html(self):
     html = self.callHandler.generate_geoname_html(4709090)
@@ -27,8 +27,8 @@ class TestSearchHandlerQt():
       assert(i in html)
 
   @mock.patch('view.View.move_focus')
-  def test_map_tracklist_popup(self, arg):
+  def test_map_tracklist_popup(self, moveFocus):
     self.callHandler.map_tracklist_popup(3,"Acoustic Syndicate Live at Boulder Theatre on 2002-01-25")
 
-  def test_map_link_clicked(self):
-    pytest.fail()
+    assert(moveFocus.called)
+

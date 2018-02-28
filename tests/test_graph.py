@@ -11,7 +11,7 @@ import matplotlib.patches as mpatch
 import matplotlib
 import calma
 import random
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 import application
 import mock
 
@@ -74,9 +74,13 @@ class TestGraphPlotQt():
     """
 
     # Create a plot of the CALMA data
-    self.prog.calmaHandler.set_new_track_calma("http://calma.linkedmusic.org/data/80/track_8002a966-fc65-4af6-897a-cdecd237f8f9")
+    signals = SignalsMock()
+    # Check our lambda function returns closest key change to inputted value
+    kwargs = {'finished_set_new_track': signals.finishedSetTrackSignal}
+    self.prog.calmaHandler.set_new_track_calma("http://calma.linkedmusic.org/data/80/track_8002a966-fc65-4af6-897a-cdecd237f8f9", **kwargs)
     self.graphInstance.plot_calma_data(self.prog.calmaHandler.loudnessValues, self.prog.calmaHandler.keyInfo, self.prog.calmaHandler.duration, 'key')
     self.graphInstance.plot_calma_data(self.prog.calmaHandler.loudnessValues, self.prog.calmaHandler.keyInfo, self.prog.calmaHandler.duration,
                                        'segment')
 
-    # ASSERTIONS HERE
+class SignalsMock(QtCore.QObject):
+  finishedSetTrackSignal = QtCore.pyqtSignal(object, object, object, float, dict)

@@ -33,12 +33,21 @@ class TestTableHandler():
     try:
       self.prog.searchHandler.view.tableHandler.resultsTable.scrollToBottom()
     except Exception as e:
+      print(e)
       pytest.fail()
 
-  # @mock.patch('application.TableHandler.update_table_item', side_effect=set_updated_table())
-  # def test_retrieve_labels_scroll(self, updateTableItemMock):
-  #   self.prog.searchHandler.view.tableHandler.resultsTable.scrollToBottom()
-  #   assert(updateTableItemMock.assert_called())
+  @mock.patch('application.TableHandler.get_label_for_URI')
+  def test_retrieve_labels_scroll(self, workerThread):
+    assert(not workerThread.called)
+
+    for rowIndex in range(0, self.prog.searchHandler.view.tableHandler.resultsTable.rowCount() - 1):
+      for columnIndex in range(0, self.prog.searchHandler.view.tableHandler.resultsTable.columnCount() - 1):
+        self.prog.searchHandler.view.tableHandler.resultsTable.item(rowIndex, columnIndex).setText("http://etree.linkedmusic.org/venue/akashic2005-02-04.c4.flac16")
+
+    signals = SignalStubs()
+    self.prog.searchHandler.view.tableHandler.retrieve_labels_scroll(0, kwargs=signals.kwargs)
+    assert(workerThread.called)
+
 
   def test_get_table(self):
     assert(isinstance(self.prog.searchHandler.view.tableHandler.resultsTable, QtWidgets.QTableWidget))
@@ -53,9 +62,6 @@ class TestTableHandler():
   def test_generate_table_end(self):
     self.tableHandler.generate_table_end()
     assert(self.tableHandler.get_table().EditTriggers() == QtWidgets.QAbstractItemView.NoEditTriggers)
-
-  def test_search_table_clicked(self):
-    self.fail()
 
   def test_change_focus(self):
     # Add example items to table
@@ -107,6 +113,29 @@ class TestTableHandler():
       if self.prog.searchHandler.view.tableHandler.horizontalHeaderItem(c).text() == 'Location':
         assert(self.prog.searchHandler.view.tableHandler.columnWidth(c) == 400)
 
+  def test_open_table_menu(self, qtbot):
+    self.prog.searchHandler.view.tableHandler.resultsTable.setRowCount(2)
+    item = QtWidgets.QTableWidgetItem("Item")
+    self.prog.searchHandler.view.tableHandler.resultsTable.setItem(0,0,item)
+    index = self.prog.searchHandler.view.tableHandler.resultsTable.indexFromItem(item)
+    self.prog.searchHandler.view.tableHandler.resultsTable.setCurrentIndex(index)
+    qpoint = QtCore.QPoint(1,0)
+    self.prog.searchHandler.view.tableHandler.open_table_menu(qpoint)
+    assert (isinstance(self.prog.searchHandler.view.tableHandler.menu, QtWidgets.QMenu))
+    self.prog.searchHandler.view.tableHandler.menu.close()
+
+  @mock.patch('export.Export.export_data')
+  def test_table_browse_menu_click(self, exportData):
+    self.prog.searchForm.artistFilter.setText('Grateful Dead')
+    self.prog.searchForm.numResultsSpinbox.setValue(5)
+    results = self.prog.searchHandler.perform_search()
+    self.prog.searchHandler.view.tableHandler.menuOnItem = QtCore.QPoint(1,0)
+    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("JSON"))
+    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("CSV"))
+    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("M3U"))
+    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("XML"))
+    assert(exportData)
+
 class SignalStubs(QtCore.QObject):
   update_table_item = QtCore.pyqtSignal(int, int, QtWidgets.QTableWidgetItem)
   add_table_item = QtCore.pyqtSignal(int, int, QtWidgets.QTableWidgetItem)
@@ -127,3 +156,4 @@ class SignalStubs(QtCore.QObject):
 
   def signal_slot_stub(self):
     return
+

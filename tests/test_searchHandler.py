@@ -198,6 +198,7 @@ class TestSearchHandlerQt():
     assert(self.prog.searchForm.dateTo.date() == QtCore.QDate(2017, 1, 1))
 
   def test_setup_views(self):
+  #   pytest.fail()
     requestedViews = ['map', 'timeline', 'table']
     results = {'results' : {'bindings' : [] },
                'head' : { 'vars' : []

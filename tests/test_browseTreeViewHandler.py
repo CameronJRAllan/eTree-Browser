@@ -27,6 +27,20 @@ class TestBrowseTreeViewHandler():
     # Check correct result is at the top
     assert(self.prog.browseList.model().index(0, 0).data() == "Grateful Dead")
 
+  def test_tree_view_filter_update(self, qtbot):
+    # Search for 3 Dimensional Figures
+    qtbot.addWidget(self.prog.quickFilter)
+    qtbot.addWidget(self.prog.browseList)
+
+    qtbot.keyClicks(self.prog.quickFilter, "3 Dimensional Figures")
+
+    # Call tree view function with artist
+    self.prog.browseListHandler.browse_link_clicked(self.prog.browseList.model().index(0, 0))
+    self.prog.treeViewFilter.setText("Jake's Roundup")
+    self.prog.treeViewHandler.tree_view_filter_update()
+    topResult = self.prog.browseTreeView.model().itemData(self.prog.browseTreeView.model().index(0, 0))
+    assert(topResult[0] == "3 Dimensional Figures Live at Jake's Roundup on 2007-03-23")
+
   def test_expand_tree_item(self, qtbot):
     # Search for 3 Dimensional Figures
     qtbot.addWidget(self.prog.quickFilter)
@@ -112,7 +126,4 @@ class TestBrowseTreeViewHandler():
 
     # Call tree view function with genre
     self.prog.browseListHandler.browse_link_clicked(self.prog.browseList.model().index(0, 0))
-
-    print(self.prog.browseTreeView.model().index(0, 0))
-    assert("Ryan Montbleau Live at Highline Ballroom" in self.prog.browseTreeView.model().index(0, 0).data())
     assert(isinstance(self.prog.browseTreeView.model(), QtGui.QStandardItemModel))
