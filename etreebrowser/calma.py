@@ -16,14 +16,12 @@ class Calma():
     The Calma class is used for all interfacing with the feature extraction tools available at the end-point provided by Sean Bechhofer's research and work.
 
     """
-    self.sparql = SPARQLWrapper("http://etree.linkedmusic.org/sparql")
+    self.sparql = SPARQLWrapper("https://etree.linkedmusic.org/sparql")
     self.sparql.setReturnFormat(JSON)
     self.sparql.setMethod("POST")
     self.keyInfo = None
     self.loudnessValues = None
     self.segmentInfo = None
-    # self.calmaCache = {}
-    # cache.save(self.calmaCache, 'calmaCache')
     self.calmaCache = cache.load('calmaCache')
 
   def get_features_track(self, trackAudioURL):
@@ -90,7 +88,11 @@ class Calma():
     self.segmentInfo = self.get_calma_data(calmaURL, 'segmentation')
     self.loudnessValues = self.get_calma_data(calmaURL, 'loudness')
     self.duration = self.get_duration_track(calmaURL)
-    kwargs['finished_set_new_track'].emit(self.loudnessValues, self.keyInfo, self.segmentInfo, self.duration, kwargs)
+
+    try:
+      kwargs['finished_set_new_track'].emit(self.loudnessValues, self.keyInfo, self.segmentInfo, self.duration, kwargs)
+    except KeyError as k:
+      return
 
   def get_duration_track(self, calmaURL):
     # Check cache for duration
@@ -118,9 +120,11 @@ class Calma():
     # Check cache first for cache
     try:
       data = self.calmaCache[calmaURL][feature]
+      print('in cache')
       return data
     # If not in cache, continue to retrieve CALMA data
     except (ValueError, KeyError) as v:
+      print('exception: {0}'.format(v))
       pass
 
     return self.iterate_graph_for_feature(calmaURL, feature)
@@ -231,6 +235,9 @@ class Calma():
     if calmaURL not in self.calmaCache:
       self.calmaCache[calmaURL] = {}
       print('calaURL set for {0}'.format(calmaURL))
+    else:
+      print('url already in cache')
+
     # Add to cache and save
     self.calmaCache[calmaURL][feature] = events
     cache.save(self.calmaCache, 'calmaCache')
@@ -405,7 +412,6 @@ class Calma():
     key : string
       Key in event closest to this input time.
     """
-
     if self.keyInfo and time >= 0:
       return (min(self.keyInfo, key=lambda x:abs(x[0]-time))[1])
     else:

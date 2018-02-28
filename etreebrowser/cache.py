@@ -1,4 +1,8 @@
-import pickle, os
+import os
+try:
+   import cPickle as pickle
+except:
+   import pickle
 
 def save(obj, name):
   """

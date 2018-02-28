@@ -125,13 +125,13 @@ class Export():
         subObject = data[nameOfTag]
 
         # Append opening tag
-        results.append("%s<%s>" % (padding, nameOfTag))
+        results.append("%s<%s>" % (padding, nameOfTag.translate(str.maketrans({'(': '', ')': '', ' ': '_'}))))
 
         # Append sub-object if applicable
         results.append(self.xml_recursive(subObject, "\t" + padding))
 
         # Append closing tag
-        results.append("%s</%s>" % (padding, nameOfTag))
+        results.append("%s</%s>" % (padding, nameOfTag.translate(str.maketrans({'(': '', ')': '', ' ': '_'}))))
 
       # Append into single string, newline seperated
       return "\n".join(results)

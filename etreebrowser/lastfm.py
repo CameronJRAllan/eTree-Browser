@@ -86,9 +86,12 @@ class lastfmAPI():
     if r.status_code == 200:
       r_json = json.loads(r.text)
       results = []
-      for artist in r_json['similarartists']['artist']:
-        results.append(artist['name'])
-      return results
+      try:
+        for artist in r_json['similarartists']['artist']:
+          results.append(artist['name'])
+        return results
+      except KeyError as k:
+        return []
     else:
       raise ValueError('Error: ' + str(r.status_code) + '\n' + str(r.text))
 
@@ -100,11 +103,7 @@ class lastfmAPI():
     r = requests.post(url)
     if r.status_code == 200:
       r_json = json.loads(r.text)
-      results = []
-      for key in r_json['artist']['tags']:
-        print(r_json['artist']['tags'][key])
-        print(r_json['artist']['tags'][key][0])
-      return results
+      return r_json
     else:
       raise ValueError('Error: ' + str(r.status_code) + '\n' + str(r.text))
 

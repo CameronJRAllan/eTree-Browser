@@ -13,7 +13,7 @@ class SPARQL():
     The SPARQL class is used for all interfacing with the SPARQL end-point provided from Sean Bechhofer's research and work.
 
     """
-    self.sparql = SPARQLWrapper("http://etree.linkedmusic.org/sparql")
+    self.sparql = SPARQLWrapper("https://etree.linkedmusic.org/sparql")
     self.sparql.setReturnFormat(JSON)
     self.sparql.setMethod("POST")
 

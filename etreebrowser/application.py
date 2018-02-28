@@ -130,9 +130,6 @@ class mainWindow(UI):
     self.initialize_history_table()
     self.initialize_most_played()
 
-    # Set-up now playing table
-    self.nowPlayingHandler.initialize_now_playing()
-
     self.searchForm = search.searchForm(self)
     if self.historyonLoadChk.isChecked():
       self.searchForm.generate_on_this_day()
@@ -378,22 +375,22 @@ class mainWindow(UI):
         level += 1
 
       # Create menu
-      menu = QtWidgets.QMenu()
+      self.menu = QtWidgets.QMenu()
       exportFormatMenu = QtWidgets.QMenu("Export Data")
-      menu.triggered.connect(self.tree_browse_menu_click)
+      self.menu.triggered.connect(self.tree_browse_menu_click)
 
       # If performance
       if level == 0:
-        menu.addAction(QtCore.QT_TR_NOOP("Expand Item"))
-        menu.addAction(QtCore.QT_TR_NOOP("Collapse Item"))
-        menu.addMenu(exportFormatMenu)
+        self.menu.addAction(QtCore.QT_TR_NOOP("Expand Item"))
+        self.menu.addAction(QtCore.QT_TR_NOOP("Collapse Item"))
+        self.menu.addMenu(exportFormatMenu)
         exportFormatMenu.addAction('JSON')
         exportFormatMenu.addAction('CSV')
         exportFormatMenu.addAction('XML')
         exportFormatMenu.addAction('M3U')
 
       # Map menu to the view-port
-      menu.exec_(self.browseTreeView.viewport().mapToGlobal(pos))
+        self.menu.exec_(self.browseTreeView.viewport().mapToGlobal(pos))
 
   def tree_browse_menu_click(self, index):
     """
@@ -891,25 +888,29 @@ class BrowseTreeViewHandler():
         # Retrieve tracklist from SPARQL end-point
         tracklist = self.main.sparql.get_tracklist_grouped(str(index.data()))
         self.currentReleaseData = tracklist['results']['bindings']
+
         i = 0
+        preventDuplicates = []
         for track in tracklist['results']['bindings']:
-          # Add to treeView
-          listItem = QtGui.QStandardItem(str(track['num']['value']) + '. ' + track['label']['value'])
-          self.main.treeViewModel.itemFromIndex(index).setChild(i, listItem)
-          i += 1
+          if track['num']['value'] not in preventDuplicates:
+            # Add to treeView
+            listItem = QtGui.QStandardItem(str(track['num']['value']) + '. ' + track['label']['value'])
+            preventDuplicates.append(track['num']['value'])
+            self.main.treeViewModel.itemFromIndex(index).setChild(i, listItem)
+            i += 1
 
-          self.main.browseTreeView.collapseAll()
-          self.main.browseTreeView.expand(index)
+        self.main.browseTreeView.collapseAll()
+        self.main.browseTreeView.expand(index)
 
-          try:
-            self.main.browseTreePropertiesLayout.takeAt(1)
-          except AttributeError:
-            self.main.browseTreePropertiesLayout = QtWidgets.QBoxLayout(1)
+        try:
+          self.main.browseTreePropertiesLayout.takeAt(1)
+        except AttributeError:
+          self.main.browseTreePropertiesLayout = QtWidgets.QBoxLayout(1)
 
-          self.main.browseTreePropertiesLayout.setContentsMargins(0, 0, 0, 0)
-          self.main.browseTreePropertiesLayout.addWidget(self.main.browseTreeProperties.retrieve_release_info(index.data()))
+        self.main.browseTreePropertiesLayout.setContentsMargins(0, 0, 0, 0)
+        self.main.browseTreePropertiesLayout.addWidget(self.main.browseTreeProperties.retrieve_release_info(index.data()))
 
-          self.main.additionalInfoFrame.setLayout(self.main.browseTreePropertiesLayout)
+        self.main.additionalInfoFrame.setLayout(self.main.browseTreePropertiesLayout)
 
   def play_tree_item(self, index):
     """
@@ -942,6 +943,7 @@ class BrowseTreeViewHandler():
 
         # Start audio playback
         self.main.audioHandler.user_audio_clicked(audioList, trackIndex)
+
         # Update icons
         self.main.audioHandler.isPlaying = True
         self.main.playPauseBtn.setIcon(qta.icon('fa.pause'))
@@ -1212,13 +1214,13 @@ class TableHandler():
     indexes = self.resultsTable.selectedIndexes()
 
     # Create menu
-    menu = QtWidgets.QMenu()
+    self.menu = QtWidgets.QMenu()
     exportFormatMenu = QtWidgets.QMenu("Export Data")
-    menu.triggered.connect(self.table_browse_menu_click)
+    self.menu.triggered.connect(self.table_browse_menu_click)
 
     # # If performance
     # if level == 0:
-    menu.addMenu(exportFormatMenu)
+    self.menu.addMenu(exportFormatMenu)
     exportFormatMenu.addAction('JSON')
     exportFormatMenu.addAction('CSV')
     exportFormatMenu.addAction('XML')
@@ -1228,13 +1230,12 @@ class TableHandler():
       if self.resultsTable.horizontalHeaderItem(c).text() == 'Calma':
         if (self.resultsTable.item(indexes[0].row(), c).text()) == 'Y':
           calmaOptionMenu = QtWidgets.QMenu("CALMA")
-          menu.addMenu(calmaOptionMenu)
+          self.menu.addMenu(calmaOptionMenu)
           calmaOptionMenu.addAction('View Segmentation')
           calmaOptionMenu.addAction('View Key Changes')
 
     # Map menu to the view-port
-    menu.exec_(self.resultsTable.viewport().mapToGlobal(pos))
-
+    self.menu.exec_(self.resultsTable.viewport().mapToGlobal(pos))
   def table_browse_menu_click(self, index):
     """
     Processes use of the menu in the tree view.
@@ -1263,8 +1264,10 @@ class TableHandler():
           self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(),  'M3U')
         elif 'View Segmentation' == index.text():
           self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'segment')
+          self.prog.debugDialog.add_line("{0}: started CALMA segmentation plot release for {1}".format(sys._getframe().f_code.co_name, label))
         elif 'View Key Changes' == index.text():
           self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'key')
+          self.prog.debugDialog.add_line("{0}: started CALMA key change plot release for {1}".format(sys._getframe().f_code.co_name, label))
         else:
           pass
 
@@ -1372,6 +1375,8 @@ class TableHandler():
       for property in properties['results']['bindings']:
         if property['p']['value'] == "http://www.w3.org/2004/02/skos/core#prefLabel":
           label = property['o']['value']
+          self.prog.debugDialog.add_line("{0}: retrieved label {1}".format(sys._getframe().f_code.co_name, label))
+
     except TypeError as t:
       pass
 
@@ -1398,6 +1403,7 @@ class MapHandler():
       worker.qt_signals.homepage_end.connect(self.end_data_processing)
       worker.qt_signals.homepage_start.connect(self.start_data_processing)
       self.prog.threadpool.start(worker)
+      self.prog.debugDialog.add_line("{0}: started geographical visualization thread".format(sys._getframe().f_code.co_name))
 
   def process_search_results(self, results, **kwargs):
     self.start_data_processing()
@@ -1411,6 +1417,7 @@ class MapHandler():
     # Tell JS instance that no more data will be sent
     self.engine.page().runJavaScript('onFinishQuery(0)')
     self.engine.show()
+    self.prog.debugDialog.add_line("{0}: finished geographical visualization thread".format(sys._getframe().f_code.co_name))
 
   def start_data_processing(self):
     # Tell JS instance to prepare for data to be processed
@@ -1441,11 +1448,12 @@ class NowPlaying():
     self.prog = prog
 
   def update_now_playing_view(self):
+    artist = self.prog.sparql.get_artist_from_tracklist(self.prog.audioHandler.playlist[self.prog.audioHandler.playlist_index][2])
+
     # Update various GUI elements
     self.update_playlist_view()
-
-  def get_image(self, artist):
-    return
+    self.update_lastfm_tags(artist)
+    self.update_similar_artists(artist)
 
   def update_playlist_view(self):
     # Clear contents of playlist view
@@ -1469,11 +1477,29 @@ class NowPlaying():
     self.prog.playlist_view.setModel(self.playlistViewModel)
     self.prog.playlist_view.setCurrentIndex(self.playlistViewModel.indexFromItem(toBeSelected))
 
-  def initialize_now_playing(self):
-    return
-    # self.now_playing_layout = QtWidgets.QHBoxLayout(self.prog.nowPlayingTab)
-    # self.now_playing_layout.addWidget(self.prog.playlist_view)
-    # self.prog.nowPlayingTab.setLayout(self.now_playing_layout)
+  def update_similar_artists(self, artist):
+    self.prog.similarArtistsList.clear()
+    similarArtists = self.prog.lastfmHandler.get_similar_artists(artist)
+    if 'error' in similarArtists:
+      return
+    else:
+      rowIndex = 0
+
+      for artist in similarArtists:
+        self.prog.similarArtistsList.insertItem(rowIndex, artist)
+        rowIndex += 1
+
+  def update_lastfm_tags(self, artist):
+    self.prog.artistTagsList.clear()
+    tags = self.prog.lastfmHandler.get_tags_for_artist(artist)
+
+    if 'error' in tags:
+      return
+    else:
+      rowIndex = 0
+      for tag in tags['artist']['tags']['tag']:
+        self.prog.artistTagsList.insertItem(rowIndex, tag['name'].title())
+        rowIndex += 1
 
 # Python-side call handler for communicating between audio player / map and python
 class CallHandler(QtCore.QObject):
@@ -1499,6 +1525,7 @@ class CallHandler(QtCore.QObject):
     else:
       popup += "\n {0}".format("GeoNames data unavailable.")
     self.app.searchHandler.view.mapSearchDialog.page().runJavaScript("setPopup({0},`{1}`)".format(link, popup))
+    self.app.debugDialog.add_line("{0}: pop-up generated from user click".format(sys._getframe().f_code.co_name))
 
   def generate_geoname_html(self, id):
     r = requests.get("http://api.geonames.org/getJSON?geonameId={0}&username={1}".format(id, "Masutatsu"))

@@ -181,7 +181,7 @@ class Audio():
     if (value <= 100) and (value >= 0):
 
       # Change system volume using PulseAudio
-      subprocess.call(["amixer", "-D", "pulse", "sset", "Master", str(value) + "%"], shell=True)
+      subprocess.call(["amixer", "-D", "pulse", "sset", "Master", str(value) + "%"])
 
       return True
     else:
@@ -219,30 +219,34 @@ class Audio():
     """
     Goes to the previous track.
     """
+    try:
+      # Fetch_next_track increments by one, so we decrement by two
+      self.playlist_index -= 2
 
-    # Fetch_next_track increments by one, so we decrement by two
-    self.playlist_index -= 2
+      if self.playlist_index < -1 : self.playlist_index = -1
 
-    if self.playlist_index < -1 : self.playlist_index = -1
-
-    self.fetch_next_track()
-    self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
+      self.fetch_next_track()
+      self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
+    except AttributeError:
+      return
 
   def fetch_next_track(self):
     """
     Fetches the next track to be played, depending on user preferences for
     playback behaviour in the queue.
     """
+    try:
+      self.kill_audio_thread()
+      time.sleep(1)
 
-    self.kill_audio_thread()
-    time.sleep(1)
+      self.playlist_index = self.get_next_track_index()
 
-    self.playlist_index = self.get_next_track_index()
+      self.app.trackLbl.setText(self.playlist[self.playlist_index][1].title())
 
-    self.app.trackLbl.setText(self.playlist[self.playlist_index][1].title())
-
-    # Start playing next track in playlist
-    self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
+      # Start playing next track in playlist
+      self.start_audio_thread(self.playlist[self.playlist_index][0], 0)
+    except AttributeError:
+      return
 
   def get_next_track_index(self):
     """
@@ -372,7 +376,7 @@ class Audio():
 
     self.isPlaying = True
     self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
-    self.app.nowPlayingHandler.update_playlist_view()
+    self.app.nowPlayingHandler.update_now_playing_view()
 
   def extract_tracklist_single_format(self, tracklist):
     """
@@ -413,17 +417,19 @@ class Audio():
     return audioList
 
   def play_pause(self):
-    # If we're currently playing a track
-    if self.isPlaying:
-      self.kill_audio_thread()
-      time.sleep(0.5)
-      self.app.playPauseBtn.setIcon(qta.icon('fa.play'))
-    else:
-      # Start playing audio from position
-      self.start_audio_thread(self.playlist[self.playlist_index][0], self.app.trackProgress.value())
-      self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
-    self.isPlaying = not self.isPlaying
-
+    try:
+      # If we're currently playing a track
+      if self.isPlaying:
+        self.kill_audio_thread()
+        time.sleep(0.5)
+        self.app.playPauseBtn.setIcon(qta.icon('fa.play'))
+      else:
+        # Start playing audio from position
+        self.start_audio_thread(self.playlist[self.playlist_index][0], self.app.trackProgress.value())
+        self.app.playPauseBtn.setIcon(qta.icon('fa.pause'))
+      self.isPlaying = not self.isPlaying
+    except (NameError, AttributeError):
+      return
   def lock_progress_user_drag(self):
     self.userDragging = True
 

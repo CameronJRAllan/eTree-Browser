@@ -40,6 +40,7 @@ class Maps():
             print("Saved cache for: {0}".format(address))
           except Exception as e:
             print("Geocoder Error: " + str(e))
+
     kwargs['homepage_end'].emit()
 
 
