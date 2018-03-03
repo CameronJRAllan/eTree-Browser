@@ -38,9 +38,9 @@ class TestLastFM(TestCase):
     assert(isinstance(tags, dict))
 
     for item in tags:
-      assert(isinstance(item, dict))
-      assert(item['name'])
-      assert(item['url'])
+      assert(isinstance(tags[item], dict))
+      assert(tags[item]['name'])
+      assert('https://www.last.fm/music' in tags[item]['url'])
 
   @mock.patch('lastfm.lastfmAPI.generate_api_request', side_effect=return_now_playing_url)
   def test_update_now_playing(self, apiMock):

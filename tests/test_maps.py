@@ -97,6 +97,3 @@ class TestMaps(TestCase):
 
     assert(self.signalStubs.reached_start == True)
     assert(self.signalStubs.reached_end == True)
-
-  def test_process_search_results(self):
-    pytest.fail()
