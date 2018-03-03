@@ -91,8 +91,7 @@
       function addPoint(lat, lng, weight, ID, title) {
         // Add to data structure
         titleArray.push(title);
-        var markerObj = L.marker([lat, lng], {icon: markerIcons[colourIndex]}).on('click', onClick);
-        queryArray[ID].markersData.push(markerObj);
+        queryArray[ID].markersData.push(L.marker([lat, lng], {icon: markerIcons[colourIndex], title: title}).on('click', onClick));
         queryArray[ID].heatmapData.push({
           lat: lat,
           lng: lng,
@@ -100,35 +99,42 @@
         });
 
         // Add to spidifier
-        queryArray[ID].oms.addMarker(markerObj);
+        queryArray[ID].oms.addMarker(queryArray[ID].markersData[queryArray[ID].markersData.length - 1]);
 
         // Create pop-up and bind to the marker
-        // markerObj.bindPopup(title);
         queryArray[ID].infoBox.push(title)
       }
 
       // Moves the marker focus on the screen
       function changeMarkerFocus(index) {
-
         // Move camera to the marker focus
         map.closePopup();
-        map.panTo(queryArray[0].markersData[index].getLatLng());
 
-        // Set blue icon
-        queryArray[0].markersData[index].setIcon(markerIcons[1]);
+        // Find marker matching this title
+        matchingMarkers = queryArray[0].markersData.filter(function(e) { return e.options.title === index; });
+        if (matchingMarkers.length > 0) {
+          index = queryArray[0].markersData.indexOf(matchingMarkers[0]);
 
-        // Open popup
-        getGeographicalData(queryArray[0].markersData[index])
+          // Pan to that icon
+          map.panTo(queryArray[0].markersData[index].getLatLng());
 
-        // Reset previous marker properties
-        try {
-          previouslySelectedMarker.setIcon(markerIcons[0])
+          // Set blue icon
+          queryArray[0].markersData[index].setIcon(markerIcons[1]);
+
+          // Open popup
+          getGeographicalData(queryArray[0].markersData[index]);
+
+          // Reset previous marker properties
+//          try {
+//            previouslySelectedMarker.setIcon(markerIcons[0])
+//          }
+//          catch (e) {
+//            console.error();
+//            alert(e)
+//          }
+
+          // previouslySelectedMarker = queryArray[0].markersData[index]
         }
-        catch (e) {
-          console.error()
-        }
-
-        previouslySelectedMarker = queryArray[0].markersData[index]
       }
 
       // Post-processing after all data has been added to the map data-set.
@@ -275,6 +281,17 @@
         // Find marker index
         var index = queryArray[0].markersData.indexOf(marker);
 
+        queryArray[0].markersData[index].setIcon(markerIcons[1]);
+        try {
+          previouslySelectedMarker.setIcon(markerIcons[0])
+        }
+        catch (e) {
+          console.error();
+          // alert(e)
+        }
+
+        previouslySelectedMarker = queryArray[0].markersData[index];
+
         // If found
         if (index > -1) {
           // Python function call to map_tracklist_popup
@@ -292,7 +309,7 @@
   }
 
   function setPopup(index, text){
-    queryArray[0].markersData[index].bindPopup(text)
+    queryArray[0].markersData[index].bindPopup(text);
     queryArray[0].markersData[index].openPopup()
   }
 
