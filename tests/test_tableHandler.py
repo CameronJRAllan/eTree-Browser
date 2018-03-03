@@ -5,6 +5,7 @@ import sys
 from PyQt5 import QtWidgets, QtCore, QtGui
 from unittest import TestCase
 import mock
+import time
 
 def set_updated_table():
   tableUpdated = True
@@ -40,9 +41,13 @@ class TestTableHandler():
   def test_retrieve_labels_scroll(self, workerThread):
     assert(not workerThread.called)
 
-    for rowIndex in range(0, self.prog.searchHandler.view.tableHandler.resultsTable.rowCount() - 1):
-      for columnIndex in range(0, self.prog.searchHandler.view.tableHandler.resultsTable.columnCount() - 1):
-        self.prog.searchHandler.view.tableHandler.resultsTable.item(rowIndex, columnIndex).setText("http://etree.linkedmusic.org/venue/akashic2005-02-04.c4.flac16")
+    self.prog.searchForm.artistFilter.setText("Grateful Dead")
+    self.prog.searchForm.numResultsSpinbox.setValue(15)
+    self.prog.searchHandler.perform_search()
+    time.sleep(5)
+    # for rowIndex in range(0, self.prog.searchHandler.view.tableHandler.resultsTable.rowCount() - 1):
+    #   for columnIndex in range(0, self.prog.searchHandler.view.tableHandler.resultsTable.columnCount() - 1):
+    #     self.prog.searchHandler.view.tableHandler.resultsTable.item(rowIndex, columnIndex).setText("http://etree.linkedmusic.org/venue/akashic2005-02-04.c4.flac16")
 
     signals = SignalStubs()
     self.prog.searchHandler.view.tableHandler.retrieve_labels_scroll(0, kwargs=signals.kwargs)
@@ -124,17 +129,32 @@ class TestTableHandler():
     assert (isinstance(self.prog.searchHandler.view.tableHandler.menu, QtWidgets.QMenu))
     self.prog.searchHandler.view.tableHandler.menu.close()
 
-  @mock.patch('export.Export.export_data')
+  @mock.patch('application.TableHandler.initiate_export_format')
   def test_table_browse_menu_click(self, exportData):
-    self.prog.searchForm.artistFilter.setText('Grateful Dead')
-    self.prog.searchForm.numResultsSpinbox.setValue(5)
-    results = self.prog.searchHandler.perform_search()
-    self.prog.searchHandler.view.tableHandler.menuOnItem = QtCore.QPoint(1,0)
-    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("JSON"))
-    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("CSV"))
-    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("M3U"))
-    self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("XML"))
-    assert(exportData)
+    # self.prog.searchForm.artistFilter.setText('Grateful Dead')
+    # self.prog.searchForm.numResultsSpinbox.setValue(10)
+    # results = self.prog.searchHandler.perform_search()
+    # time.sleep(5)
+
+    with pytest.raises(AttributeError):
+      self.prog.searchHandler.view.tableHandler.resultsTable.setColumnCount(1)
+      self.prog.searchHandler.view.tableHandler.resultsTable.setHorizontalHeaderLabels(['Performance Title'])
+      for i in range(0, 15):
+        self.prog.searchHandler.view.tableHandler.resultsTable.setItem(i, 0, QtWidgets.QTableWidgetItem("http://url.to.resource.com/"))
+      self.prog.searchHandler.view.tableHandler.menuOnItem = QtCore.QPoint(44,11)
+      self.prog.searchHandler.view.tableHandler.table_browse_menu_click(QtWidgets.QAction("JSON"))
+
+  @mock.patch('export.Export.export_data')
+  @mock.patch('calma.CalmaPlotRelease.calma_release')
+  def test_initiate_export_format(self, calmaPlotRelease, exportData):
+    self.prog.searchHandler.view.tableHandler.initiate_export_format("JSON", '311 Live at House of Blues on 2002-03-02')
+    self.prog.searchHandler.view.tableHandler.initiate_export_format("CSV", '311 Live at House of Blues on 2002-03-02')
+    self.prog.searchHandler.view.tableHandler.initiate_export_format("M3U", '311 Live at House of Blues on 2002-03-02')
+    self.prog.searchHandler.view.tableHandler.initiate_export_format("XML", '311 Live at House of Blues on 2002-03-02')
+    assert(exportData.called)
+    self.prog.searchHandler.view.tableHandler.initiate_export_format("View Segmentation", '311 Live at House of Blues on 2002-03-02')
+    self.prog.searchHandler.view.tableHandler.initiate_export_format("View Key Changes", '311 Live at House of Blues on 2002-03-02')
+    assert(calmaPlotRelease.called)
 
 class SignalStubs(QtCore.QObject):
   update_table_item = QtCore.pyqtSignal(int, int, QtWidgets.QTableWidgetItem)
