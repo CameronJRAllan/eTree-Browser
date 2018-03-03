@@ -4,21 +4,31 @@ import sys
 
 class WorkerThreadSignals(QtCore.QObject):
   '''
-    Defines the signals available from a running worker thread.
+    This blog post from Maya Posch was very useful in developing
+    understanding of thread behaviour in Qt:
+    https://mayaposch.wordpress.com/2011/11/01/how-to-really-truly-use-qthreads-the-full-explanation/
 
-    Supported signals are:
+    Defines the signals available from a running worker thread
+    allowing communication between theads. To declare signals
+    we must sub-class QObject.
+
+    There are several bespoke signals, but the ones available
+    for all functions executed are:
 
     finished
-        No data
+        The function has finished with no error raised.
 
     error
-        `tuple` (exctype, value, traceback.format_exc() )
+        A tuple containing the execution type, the value,
+        and a trace-back of the error raised.
 
     result
-        `object` data returned from processing, anything
+        Returns an object representing the result of the
+        function executed.
 
     progress
-        `int` indicating % progress
+        An integer value, used to updated progress, for
+        example in a progress bar.
 
     '''
 
@@ -76,6 +86,7 @@ class WorkerThread(QtCore.QRunnable):
         A list of keyword arguments.
     '''
 
+    # Run constructor of parent class
     super(WorkerThread, self).__init__()
 
     # Store constructor arguments as instance variables for later retrieval and use
@@ -102,7 +113,8 @@ class WorkerThread(QtCore.QRunnable):
   @QtCore.pyqtSlot()
   def run(self):
     '''
-      Begins thread execution
+      Starts the execution of a thread, with the set function of the
+      class, and any set keyword / positional arguments.
 
       Retrieve the arguments and keyword arguments 'kwargs' and use them to start processing, sending signals when
       required
@@ -111,15 +123,19 @@ class WorkerThread(QtCore.QRunnable):
     # Try executing the thread
     try:
       thread_returned_value = self.func(*self.arguments, **self.k_arguments)
+    # If an error occurs, return this to the main thread
     except:
       # Print the traceback of the error that occured
       traceback.print_exc()
       executionType, errorValue = sys.exc_info()[:2]
+
       # Emit the error so that main program is made aware
       self.qt_signals.error.emit((executionType, errorValue, traceback.format_exc()))
+    # If no error raised, return the result
     else:
       # Return the result of the processing
       self.qt_signals.result.emit(thread_returned_value)
+    # At the end, return a finished signal
     finally:
       # Tell main program that this thread has finished
       self.qt_signals.finished.emit()

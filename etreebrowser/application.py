@@ -1250,26 +1250,30 @@ class TableHandler():
     for c in range(0, self.resultsTable.columnCount()):
       if self.resultsTable.horizontalHeaderItem(c).text() == 'Performance Title':
         label = self.resultsTable.item(contextRow.row(), c).text()
-        self.exporter = export.Export(self.prog)
 
         # Process menu options
-        if 'JSON' == index.text():
-          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(),
-                                    'JSON')
-        elif 'CSV' == index.text():
-          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(), 'CSV')
-        elif 'XML' == index.text():
-          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(), 'XML')
-        elif 'M3U' == index.text():
-          self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(),  'M3U')
-        elif 'View Segmentation' == index.text():
-          self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'segment')
-          self.prog.debugDialog.add_line("{0}: started CALMA segmentation plot release for {1}".format(sys._getframe().f_code.co_name, label))
-        elif 'View Key Changes' == index.text():
-          self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'key')
-          self.prog.debugDialog.add_line("{0}: started CALMA key change plot release for {1}".format(sys._getframe().f_code.co_name, label))
-        else:
-          pass
+        self.initiate_export_format(index.text(), label)
+
+  def initiate_export_format(self, format, label):
+    self.exporter = export.Export(self.prog)
+
+    if 'JSON' == format:
+      self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(),
+                                'JSON')
+    elif 'CSV' == format:
+      self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(), 'CSV')
+    elif 'XML' == format:
+      self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(), 'XML')
+    elif 'M3U' == format:
+      self.exporter.export_data(self.prog.sparql.get_release_properties(label), self.prog.browseTreeProperties.get_translation_uri(), 'M3U')
+    elif 'View Segmentation' == format:
+      self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'segment')
+      self.prog.debugDialog.add_line("{0}: started CALMA segmentation plot release for {1}".format(sys._getframe().f_code.co_name, label))
+    elif 'View Key Changes' == format:
+      self.releaseView = calma.CalmaPlotRelease(self.prog, label, 'key')
+      self.prog.debugDialog.add_line("{0}: started CALMA key change plot release for {1}".format(sys._getframe().f_code.co_name, label))
+    else:
+      pass
 
   def search_table_clicked(self, title):
     searchColumn = None
@@ -1404,14 +1408,6 @@ class MapHandler():
       worker.qt_signals.homepage_start.connect(self.start_data_processing)
       self.prog.threadpool.start(worker)
       self.prog.debugDialog.add_line("{0}: started geographical visualization thread".format(sys._getframe().f_code.co_name))
-
-  def process_search_results(self, results, **kwargs):
-    self.start_data_processing()
-    # For each item of data
-    for item in results['results']['bindings']:
-      # Send message to main thread to pass data to JS instance
-      self.mapsClass.add(item, kwargs['js_callback'])
-    self.engine.page().runJavaScript('onFinishQuery(0)')
 
   def end_data_processing(self):
     # Tell JS instance that no more data will be sent

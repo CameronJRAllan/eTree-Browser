@@ -7,6 +7,8 @@ from math import sin, cos, sqrt, atan2, radians
 import graph
 import view
 import time
+import traceback
+
 class searchForm():
   """
   Initializes an instance of the search form, which contains the search and results tabs.
@@ -464,8 +466,8 @@ class SearchHandler():
 
     # Add to appropriate indexes our new row of widgets
     self.main.searchForm.advancedSearchLayout.addWidget(self.generate_field_combo(), count + 1, 1, 1, 2)
-    self.main.searchForm.advancedSearchLayout.addWidget(self.generate_condition_combo(), count + 1, 2, 1, 2)
-    self.main.searchForm.advancedSearchLayout.addWidget(QtWidgets.QLineEdit(), count + 1, 3, 1, 2)
+    self.main.searchForm.advancedSearchLayout.addWidget(self.generate_condition_combo(), count + 1, 2, 1, 3)
+    self.main.searchForm.advancedSearchLayout.addWidget(QtWidgets.QLineEdit(), count + 1, 4, 1, 2)
 
     # Add auto-completion where appropriate
     self.update_auto_complete()
@@ -602,7 +604,7 @@ class SearchHandler():
 
       while right < left:
         item += ')'
-
+        right += 1
       customConditions[index] = item
 
     return customConditions
@@ -633,6 +635,8 @@ class SearchHandler():
 
       # Find all locations within the range specified by the user
       for key, value in sorted(self.main.browseListHandler.locationList.items()):
+        a, c, distance = None, None, None
+
         keyLat, keyLon = value['latlng'].split(' ')
 
         # Convert to floats from strings, then convert to radians
@@ -640,27 +644,30 @@ class SearchHandler():
         keyLon = radians(float(keyLon))
 
         # Calculate delta between pairs of lat / lngs
-        deltaLon = keyLon - centerLon
-        deltaLat = keyLat - centerLat
+        deltaLongitude = keyLon - centerLon
+        deltaLatitude = keyLat - centerLat
 
         # Perform point-to-point distance calculation
-        a = sin(deltaLat / 2) ** 2 + cos(centerLat) * cos(centerLon) * sin(deltaLon / 2) ** 2
-        try:
-          c = 2 * atan2(sqrt(a), sqrt(1 - a)) # This line causes an error
+        a = sin(deltaLatitude / 2) ** 2 + cos(centerLat) * cos(keyLat) * sin(deltaLongitude / 2) ** 2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
 
-          distance = radius * c
+        # a = sin(deltaLat / 2) ** 2 + cos(centerLat) * cos(centerLon) * sin(deltaLon / 2) ** 2
+        # # try:
+        # c = 2 * atan2(sqrt(a), sqrt(1 - a)) # This line causes an error
 
-          # If location is within our distance radius
-          if distance < float(self.main.searchForm.locationRangeFilter.text()):
-            # self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, str(key)
-            #                                                  + ' by a distance of ' + str(float(self.main.locationRangeFilter.text()) - distance)))
+        distance = radius * c
 
-            # Append all mapped locations for this key to our requested locations
-            for location in value['locations']:
-              locations.append(location)
-        except ValueError as v:
-          print(v)
-          pass
+        # If location is within our distance radius
+        if distance < float(self.main.searchForm.locationRangeFilter.text()):
+          # self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, str(key)
+          #                                                  + ' by a distance of ' + str(float(self.main.locationRangeFilter.text()) - distance)))
+
+          # Append all mapped locations for this key to our requested locations
+          for location in value['locations']:
+            locations.append(location)
+        # except ValueError as v:
+        #   print(v)
+        #   pass
       return locations
     # If only 1 location requested
     elif len(self.main.searchForm.locationFilter.text()) > 0:
