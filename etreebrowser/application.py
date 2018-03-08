@@ -1037,7 +1037,7 @@ class TableHandler():
 
     # Retrieve labels for next 5 items
     worker = multithreading.WorkerThread(self.retrieve_labels_scroll, topRow)
-    worker.qt_signals.update_table_item.connect(self.update_table_item)
+    worker.qtSignals.update_table_item.connect(self.update_table_item)
     self.prog.threadpool.start(worker)
 
   def retrieve_labels_scroll(self, startRow, **kwargs):
@@ -1098,9 +1098,9 @@ class TableHandler():
         Dictionary of results returned from the SPARQL query.
     """
     worker = multithreading.WorkerThread(self.generate_results_table, results)
-    worker.qt_signals.add_table_item.connect(self.add_table_item)
-    worker.qt_signals.start_table.connect(self.generate_table_start)
-    worker.qt_signals.end_table.connect(self.generate_table_end)
+    worker.qtSignals.add_table_item.connect(self.add_table_item)
+    worker.qtSignals.start_table.connect(self.generate_table_start)
+    worker.qtSignals.end_table.connect(self.generate_table_end)
     self.prog.threadpool.start(worker)
     self.prog.debugDialog.add_line("{0}: started table thread".format(sys._getframe().f_code.co_name))
 
@@ -1150,7 +1150,6 @@ class TableHandler():
     # Set header properties
     header = self.resultsTable.horizontalHeader()
     header.setSectionResizeMode(QtWidgets.QHeaderView.Interactive)
-    # header.setStretchLastSection(True)
     vHeader = self.resultsTable.verticalHeader()
     vHeader.setVisible(False)
 
@@ -1173,7 +1172,9 @@ class TableHandler():
       self.resultsTable.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
       self.resultsTable.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
       self.layout.setContentsMargins(0,0,0,11)
-      #  self.resultsTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+      # self.resultsTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+      self.resultsTable.setColumnWidth(0, 700)
+
       # Add focus signal handlers
       self.resultsTable.itemClicked.connect(self.prog.searchHandler.view.move_focus)
       self.resultsTable.verticalScrollBar().valueChanged.connect(self.on_table_scroll)
@@ -1393,7 +1394,6 @@ class TableHandler():
       if self.resultsTable.horizontalHeaderItem(c).text() == 'Location':
         self.resultsTable.setColumnWidth(c, 400)
 
-
 class MapHandler():
   def __init__(self, prog, webEngine):
     self.engine = webEngine
@@ -1403,9 +1403,9 @@ class MapHandler():
   def add_search_results_map(self, results):
     if results is not None:
       worker = multithreading.WorkerThread(self.mapsClass.homepage_add, results)
-      worker.qt_signals.js_callback.connect(self.add_point)
-      worker.qt_signals.homepage_end.connect(self.end_data_processing)
-      worker.qt_signals.homepage_start.connect(self.start_data_processing)
+      worker.qtSignals.js_callback.connect(self.add_point)
+      worker.qtSignals.homepage_end.connect(self.end_data_processing)
+      worker.qtSignals.homepage_start.connect(self.start_data_processing)
       self.prog.threadpool.start(worker)
       self.prog.debugDialog.add_line("{0}: started geographical visualization thread".format(sys._getframe().f_code.co_name))
 

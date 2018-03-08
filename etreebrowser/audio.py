@@ -276,10 +276,10 @@ class Audio():
   def start_audio_thread(self, url, seek, **kwargs):
     self.kill_audio_thread()
     worker = multithreading.WorkerThread(self.app.audioHandler.ffmpeg_pipeline, url, seek=seek)
-    worker.qt_signals.track_finished.connect(self.fetch_next_track)
-    worker.qt_signals.update_track_progress.connect(self.update_seekbar)
-    worker.qt_signals.update_track_duration.connect(self.send_duration)
-    worker.qt_signals.scrobble_track.connect(self.app.scrobble_track_lastfm)
+    worker.qtSignals.track_finished.connect(self.fetch_next_track)
+    worker.qtSignals.update_track_progress.connect(self.update_seekbar)
+    worker.qtSignals.update_track_duration.connect(self.send_duration)
+    worker.qtSignals.scrobble_track.connect(self.app.scrobble_track_lastfm)
 
     if 'testing' not in kwargs : self.app.audioThreadpool.start(worker)
 
@@ -430,6 +430,7 @@ class Audio():
       self.isPlaying = not self.isPlaying
     except (NameError, AttributeError):
       return
+
   def lock_progress_user_drag(self):
     self.userDragging = True
 
