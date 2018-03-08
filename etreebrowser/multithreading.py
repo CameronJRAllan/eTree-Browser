@@ -67,7 +67,7 @@ class WorkerThread(QtCore.QRunnable):
     We sub-class worker from QtCore.QRunnable, in order to gain access to various public function we will require.
   '''
 
-  def __init__(self, function, *args, **kwargs):
+  def __init__(self, functionToExecute, *positionalArguments, **kwargs):
     '''
       A constructor for creating a new worker thread
 
@@ -76,10 +76,10 @@ class WorkerThread(QtCore.QRunnable):
 
       Parameters
       ----------
-      fn : function
+      functionToExecute : function
         The function to be executed within the worker.
 
-      args : list
+      positionalArguments : list
         A list of arguments.
 
       kwargs : list
@@ -90,25 +90,25 @@ class WorkerThread(QtCore.QRunnable):
     super(WorkerThread, self).__init__()
 
     # Store constructor arguments as instance variables for later retrieval and use
-    self.func = function
-    self.arguments = args
-    self.k_arguments = kwargs
-    self.qt_signals = WorkerThreadSignals()
+    self.functionToExecute = functionToExecute
+    self.arguments = positionalArguments
+    self.keywordArguments = kwargs
+    self.qtSignals = WorkerThreadSignals()
 
     # Add the callback to our kwargs
-    kwargs['js_callback'] = self.qt_signals.js_callback
-    kwargs['homepage_end'] = self.qt_signals.homepage_end
-    kwargs['homepage_start'] = self.qt_signals.homepage_start
-    kwargs['add_table_item'] = self.qt_signals.add_table_item
-    kwargs['update_table_item'] = self.qt_signals.update_table_item
-    kwargs['start_table_callback'] = self.qt_signals.start_table
-    kwargs['fin_table_callback'] = self.qt_signals.end_table
-    kwargs['track_finished'] = self.qt_signals.track_finished
-    kwargs['update_track_progress'] = self.qt_signals.update_track_progress
-    kwargs['update_track_duration'] = self.qt_signals.update_track_duration
-    kwargs['scrobble_track'] = self.qt_signals.scrobble_track
-    kwargs['finished'] = self.qt_signals.finished
-    kwargs['finished_set_new_track'] = self.qt_signals.finished_set_new_track
+    kwargs['js_callback'] = self.qtSignals.js_callback
+    kwargs['homepage_end'] = self.qtSignals.homepage_end
+    kwargs['homepage_start'] = self.qtSignals.homepage_start
+    kwargs['add_table_item'] = self.qtSignals.add_table_item
+    kwargs['update_table_item'] = self.qtSignals.update_table_item
+    kwargs['start_table_callback'] = self.qtSignals.start_table
+    kwargs['fin_table_callback'] = self.qtSignals.end_table
+    kwargs['track_finished'] = self.qtSignals.track_finished
+    kwargs['update_track_progress'] = self.qtSignals.update_track_progress
+    kwargs['update_track_duration'] = self.qtSignals.update_track_duration
+    kwargs['scrobble_track'] = self.qtSignals.scrobble_track
+    kwargs['finished'] = self.qtSignals.finished
+    kwargs['finished_set_new_track'] = self.qtSignals.finished_set_new_track
 
   @QtCore.pyqtSlot()
   def run(self):
@@ -122,7 +122,7 @@ class WorkerThread(QtCore.QRunnable):
 
     # Try executing the thread
     try:
-      thread_returned_value = self.func(*self.arguments, **self.k_arguments)
+      valueToReturn = self.functionToExecute(*self.arguments, **self.keywordArguments)
     # If an error occurs, return this to the main thread
     except:
       # Print the traceback of the error that occured
@@ -130,12 +130,12 @@ class WorkerThread(QtCore.QRunnable):
       executionType, errorValue = sys.exc_info()[:2]
 
       # Emit the error so that main program is made aware
-      self.qt_signals.error.emit((executionType, errorValue, traceback.format_exc()))
+      self.qtSignals.error.emit((executionType, errorValue, traceback.format_exc()))
     # If no error raised, return the result
     else:
       # Return the result of the processing
-      self.qt_signals.result.emit(thread_returned_value)
+      self.qtSignals.result.emit(valueToReturn)
     # At the end, return a finished signal
     finally:
       # Tell main program that this thread has finished
-      self.qt_signals.finished.emit()
+      self.qtSignals.finished.emit()

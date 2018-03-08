@@ -149,29 +149,47 @@ class Calma():
     g = rdflib.Graph()
     g.parse(r.raw, format="n3")
 
-    # Iterate graph
-    for subject, predicate, obj in g:
+    # Get URL for desired feature
+    q = """
+        SELECT DISTINCT ?s ?p
+         WHERE {{
+            {{?s ?p <{0}>}} .
+         }}""".format(featureURL)
+    qres = g.query(q)
 
-      # If matching object reference found
-      if str(obj) == featureURL:
+    foundURL = False
+    for i, e in qres:
+      if not foundURL:
+        r = requests.get(str(i), stream=True)
+        foundURL = True
 
-        # Retrieve URL referenced in this object
-        r = requests.get(str(subject), stream=True)
-        g = rdflib.Graph()
-        g.parse(r.raw, format="n3")
+    g = rdflib.Graph()
+    g.parse(r.raw, format="n3")
 
-        # Iterate to find BLOB for this feature
-        for subject, predicate, obj in g:
-          if str(predicate) == 'http://calma.linkedmusic.org/vocab/feature_blob':
-            # Get blob contents
-            g = rdflib.Graph()
-            blobContents = self.extract_zip(obj)
+    # Get blob for specific feature
+    q = """
+        SELECT DISTINCT ?s ?o
+         WHERE {{
+            {{?s <{0}> ?o}} .
+         }}""".format("http://calma.linkedmusic.org/vocab/feature_blob")
+    qres = g.query(q)
 
-            events = self.get_feature_events(blobContents, feature)
+    foundBlob = False
+    for i, e in qres:
+      if not foundBlob:
+        blobURL = e
 
-            self.save_new_calma_cache(calmaURL, feature, events)
+    # Extract .tar.gz file and open first (only) file
+    blobContents = self.extract_zip(e)
 
-            return events
+    # Get events contained in the RDF data
+    events = self.get_feature_events(blobContents, feature)
+
+    # Save in cache for next time
+    self.save_new_calma_cache(calmaURL, feature, events)
+
+    # Return the events to the user
+    return events
 
   def get_feature_events(self, blob, feature):
     """
@@ -260,15 +278,15 @@ class Calma():
     events : list
       List of events in chronological order.
     """
-    g = rdflib.Graph()
-    g.parse(data=blob, format="n3")
+    graph = rdflib.Graph()
+    graph.parse(data=blob, format="n3")
 
     # List of predicates to fetch
     tripleList = ['event:time', 'rdfs:label']
     events = []
 
     # Iterate over subjects
-    for subject in g.subjects():
+    for subject in graph.subjects():
       # If event found
       if "event" in subject:
         # Truncate to remove local file reference
@@ -278,7 +296,7 @@ class Calma():
         for index in tripleList:
 
           # Fetch predicate information
-          q = """
+          sparqlQuery = """
               PREFIX timeline:<http://purl.org/NET/c4dm/timeline.owl#>
               SELECT DISTINCT ?o ?p
                WHERE {{
@@ -286,14 +304,14 @@ class Calma():
                   OPTIONAL {{?o timeline:at ?p}} .
                }}""".format(subject, index)
 
-          qres = g.query(q)
-          for i, e in qres:
+          extractedEvents = graph.query(sparqlQuery)
+          for label, time in extractedEvents:
             # If label found
-            if not e:
-              dictKey[featureType] = str(i)
+            if not time:
+              dictKey[featureType] = str(label)
             # If time reference found
             else:
-              dictKey['time'] = float(e.replace("S", "").replace("PT", ""))
+              dictKey['time'] = float(time.replace("S", "").replace("PT", ""))
 
         sublist = [dictKey['time'], dictKey[featureType]]
 
@@ -471,7 +489,7 @@ class CalmaPlotRelease(QtWidgets.QDialog):
       self.calma = Calma()
       kwargs = {'title': track['label']['value'], 'feature': feature, 'release' : True}
       worker = multithreading.WorkerThread(self.calma.set_new_track_calma, track['calma']['value'], **kwargs)
-      worker.qt_signals.finished_set_new_track.connect(self.callback_set_new_track)
+      worker.qtSignals.finished_set_new_track.connect(self.callback_set_new_track)
       self.app.threadpool.start(worker)
 
   def callback_set_new_track(self, loudness, keys, segments, duration, trackInfo):
