@@ -1,3 +1,10 @@
+<!--
+  LIBRARIES USED AS PART OF MY JS / MAP HANDLER:
+  Leaflet: http://leafletjs.com/
+  OverlappingMarkerSpidifier: https://github.com/jawj/OverlappingMarkerSpiderfier
+  Font-Awesome: https://fontawesome.com/
+  OpenStreetMaps: https://www.openstreetmap.org/
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,24 +21,27 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier-Leaflet/0.2.6/oms.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.js"></script>
 
-  <!-- Set-up CSS-->
+  <!-- Set-up CSS for Leaflet (map interface) -->
   <link rel="stylesheet" href="../libs/leaflet.css" />
-  <style>
-  body, html { margin:0; padding:0; height:100%;}
-  body { font-family:sans-serif; }
-  body * { font-weight:200;}
-  #map { height:100%; }
-  .leaflet-container {
-    background: rgba(0,0,0,.8) !important;
-  }
-  .leaflet-zoom-hide { position: absolute!important; }
-  #all-examples-info { position:absolute; background:white; font-size:16px; padding:20px; top:100px; width:350px; line-height:150%; border:1px solid rgba(0,0,0,.2);}
-</style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
-<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-<style></style>
 
+  <!-- Set-up CSS-->
+  <style>
+    body, html { margin:0; padding:0; height:100%;}
+    body { font-family:sans-serif; }
+    body * { font-weight:200;}
+    #map { height:100%; }
+    .leaflet-container {
+      background: rgba(0,0,0,.8) !important;
+    }
+    .leaflet-zoom-hide { position: absolute!important; }
+    #all-examples-info { position:absolute; background:white; font-size:16px; padding:20px; top:100px; width:350px; line-height:150%; border:1px solid rgba(0,0,0,.2);}
+  </style>
+
+  <!-- Buttons and Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-easybutton@2/src/easy-button.css">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
 </head>
+
 <body>
  <!-- Create DIV container for showing the map -->
   <div id="map"></div>
@@ -107,12 +117,13 @@
 
       // Moves the marker focus on the screen
       function changeMarkerFocus(index) {
-        // Move camera to the marker focus
+        // Close previous pop-up
         map.closePopup();
 
         // Find marker matching this title
         matchingMarkers = queryArray[0].markersData.filter(function(e) { return e.options.title === index; });
         if (matchingMarkers.length > 0) {
+          // Get matching marker reference
           index = queryArray[0].markersData.indexOf(matchingMarkers[0]);
 
           // Pan to that icon
@@ -123,17 +134,6 @@
 
           // Open popup
           getGeographicalData(queryArray[0].markersData[index]);
-
-          // Reset previous marker properties
-//          try {
-//            previouslySelectedMarker.setIcon(markerIcons[0])
-//          }
-//          catch (e) {
-//            console.error();
-//            alert(e)
-//          }
-
-          // previouslySelectedMarker = queryArray[0].markersData[index]
         }
       }
 
@@ -154,6 +154,7 @@
         // Add tile layer to map
         L.tileLayer('http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
+        // Add button for toggling heat-map visibility
         L.easyButton({
           states: [{
             stateName: 'toggle-heatmap',
@@ -165,6 +166,7 @@
           }]
         }).addTo(map);
 
+        // Add button for toggling marker visibility
         L.easyButton({
           states: [{
             stateName: 'toggle-map',
@@ -178,30 +180,17 @@
 
         // Increment colour index (so that overlapping marker sets have different colours)
         colourIndex = colourIndex + 1;
-      }
 
-      function increaseHeatmapGradient() {
-        if (queryArray[0].toggleMarkers) {
-          queryArray[0].heatmapRef.opacity += 0.1
+        // Store raw latitude and longitude data
+        // This may look crude, but the map operator is slow, so we use a FOR loop
+        var latLngArray = [];
+        for(var i = 0; i < queryArray[0].markersData.length; i++){
+           latLngArray.push(queryArray[0].markersData[i]._latlng);
         }
-      }
 
-      function reduceHeatmapGradient() {
-        if (queryArray[0].toggleMarkers) {
-          queryArray[0].heatmapRef.opacity -= 0.1
-        }
+        // Fit the map to the bounds of the results        
+        map.fitBounds(latLngArray);
       }
-
-      // Changes the gradient properties of the heatmap.
-//      function updateGradient(ID, low, med, high) {
-//        queryArray[ID].heatmapRef.gradient = {
-//                                              // enter n keys between 0 and 1 here
-//                                              // for gradient color customization
-//                                              '.5': low,
-//                                              '.8': med,
-//                                              '.95': high
-//                                            }
-//                                          }
 
       // Retrieves icons of various colour for use in the map.
       function getIcons() {
@@ -281,13 +270,14 @@
         // Find marker index
         var index = queryArray[0].markersData.indexOf(marker);
 
+        // Reset previous market, set new focus marker
         queryArray[0].markersData[index].setIcon(markerIcons[1]);
+
         try {
           previouslySelectedMarker.setIcon(markerIcons[0])
         }
         catch (e) {
           console.error();
-          // alert(e)
         }
 
         previouslySelectedMarker = queryArray[0].markersData[index];
@@ -315,6 +305,7 @@
 
     // On page load, create the map.
     window.onload = function() {
+      // Create our base tile layer (OpenStreetMaps)
       var baseLayer = L.tileLayer(
           'http://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
           attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, <a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, Imagery © <a href="http://cloudmade.com">CloudMade</a>',
@@ -330,6 +321,7 @@
         minZoom: 2
       });
 
+      // Get icons for later use
       getIcons()
     };
 

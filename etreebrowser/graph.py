@@ -1,6 +1,9 @@
 from PyQt5 import QtWidgets, QtCore
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib import rcParams
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = ['Cantarell']
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatch
 import numpy as np
