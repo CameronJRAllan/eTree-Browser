@@ -8,6 +8,7 @@ import graph
 import view
 import time
 import traceback
+import sys
 
 class searchForm():
   """
@@ -37,10 +38,10 @@ class searchForm():
     self.topLevelSearchLayout.setStretch(1, 8)
 
     # Set auto-completes
-    self.artistFilter.setCompleter(self.app.auto_comp(cache.load('artistList')))
-    self.genreFilter.setCompleter(self.app.auto_comp(cache.load('genreList')))
-    self.locationFilter.setCompleter(self.app.auto_comp(cache.load('newReversedGroupedLocations')))
-    self.countryFilter.setCompleter(self.app.auto_comp(cache.load('countries')))
+    self.artistFilter.setCompleter(self.app.auto_comp(self.app.cache.load('artistList')))
+    self.genreFilter.setCompleter(self.app.auto_comp(self.app.cache.load('genreList')))
+    self.locationFilter.setCompleter(self.app.auto_comp(self.app.cache.load('newReversedGroupedLocations')))
+    self.countryFilter.setCompleter(self.app.auto_comp(self.app.cache.load('countries')))
 
     # Set layout
     self.topLevelTab.setLayout(self.topLevelSearchLayout)
@@ -473,10 +474,11 @@ class SearchHandler():
     self.update_auto_complete()
 
   def remove_custom_condition(self):
-    # Get 3 last items in the layout and remove them
-    self.main.searchForm.advancedSearchLayout.itemAt(self.main.searchForm.advancedSearchLayout.count() - 1).widget().setParent(None)
-    self.main.searchForm.advancedSearchLayout.itemAt(self.main.searchForm.advancedSearchLayout.count() - 1).widget().setParent(None)
-    self.main.searchForm.advancedSearchLayout.itemAt(self.main.searchForm.advancedSearchLayout.count() - 1).widget().setParent(None)
+    if self.main.searchForm.advancedSearchLayout.count() > 0:
+      # Get 3 last items in the layout and remove them
+      self.main.searchForm.advancedSearchLayout.itemAt(self.main.searchForm.advancedSearchLayout.count() - 1).widget().setParent(None)
+      self.main.searchForm.advancedSearchLayout.itemAt(self.main.searchForm.advancedSearchLayout.count() - 1).widget().setParent(None)
+      self.main.searchForm.advancedSearchLayout.itemAt(self.main.searchForm.advancedSearchLayout.count() - 1).widget().setParent(None)
 
   def generate_field_combo(self):
     items = ['Artist', 'Genre', 'Label', 'Location', 'Venue', 'Date']
@@ -497,11 +499,11 @@ class SearchHandler():
       textEditWidget = self.main.searchForm.advancedSearchLayout.itemAt(i + 2).widget()
 
       if widgetText == 'Artist':
-        textEditWidget.setCompleter(self.main.auto_comp(cache.load('artistList')))
+        textEditWidget.setCompleter(self.main.auto_comp(self.main.cache.load('artistList')))
       elif widgetText == 'Location':
-        textEditWidget.setCompleter(self.main.auto_comp(cache.load('newReversedGroupedLocations')))
+        textEditWidget.setCompleter(self.main.auto_comp(self.main.cache.load('newReversedGroupedLocations')))
       elif widgetText == 'Genre':
-        textEditWidget.setCompleter(self.main.auto_comp(cache.load('genreList')))
+        textEditWidget.setCompleter(self.main.auto_comp(self.main.cache.load('genreList')))
 
   def generate_condition_combo(self):
     items = ['is', 'is not', 'starts with', 'ends with', 'contains', 'does not contain', 'matches RegEx', 'does not match RegEx']
@@ -659,15 +661,14 @@ class SearchHandler():
 
         # If location is within our distance radius
         if distance < float(self.main.searchForm.locationRangeFilter.text()):
-          # self.prog.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, str(key)
-          #                                                  + ' by a distance of ' + str(float(self.main.locationRangeFilter.text()) - distance)))
+          self.main.debugDialog.add_line("{0}: {1}".format(sys._getframe().f_code.co_name, str(key)
+                                                           + ' by a distance of ' + str(float(self.main.searchForm.locationRangeFilter.text()) -
+                                                                                        distance)))
 
           # Append all mapped locations for this key to our requested locations
           for location in value['locations']:
             locations.append(location)
-        # except ValueError as v:
-        #   print(v)
-        #   pass
+
       return locations
     # If only 1 location requested
     elif len(self.main.searchForm.locationFilter.text()) > 0:

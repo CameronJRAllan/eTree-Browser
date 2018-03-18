@@ -9,7 +9,8 @@ class lastfmAPI():
   def __init__(self, apiKey, sharedSecret):
     self.apiKey = apiKey
     self.sharedSecret = sharedSecret
-    self.sessionKey = cache.load('last_fm_sessionkey')
+    self.cache = cache.Cache()
+    self.sessionKey = self.cache.load('last_fm_sessionkey')
 
     # apiKey = 'c957283a3dc3401e54b309ee2f18645b'
     # sharedSecret = 'f555ab4615197d1583eb2532b502c441'
@@ -29,6 +30,15 @@ class lastfmAPI():
       raise ValueError(str((r.status_code)))
 
   def hasSession(self):
+    """
+    Examines the current state of the class instance and returns whether
+    a session is currently set.
+
+    Returns
+    ----------
+    hasSession : boolean
+        Boolean representing whether a session is currently actively with Last.fm
+    """
     if self.sessionKey and type(self.sessionKey) is not None:
       return True
     else:
@@ -72,7 +82,7 @@ class lastfmAPI():
         for sub in child:
           if len(str(sub.tag)) == 3:
             self.sessionKey = sub.text
-            cache.save(self.sessionKey, 'last_fm_sessionkey')
+            self.cache.save(self.sessionKey, 'last_fm_sessionkey')
     else:
       print('Error: ' + str(r.status_code) + '\n' + str(r.text))
 
@@ -122,5 +132,5 @@ class lastfmAPI():
 
   def logout(self):
     self.sessionKey = None
-    cache.save(self.sessionKey, 'last_fm_sessionkey')
+    self.cache.save(self.sessionKey, 'last_fm_sessionkey')
 

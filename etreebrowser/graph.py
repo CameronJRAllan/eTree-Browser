@@ -102,10 +102,6 @@ class CalmaPlot(FigureCanvas):
                   '16':'tomato',
                   '17':'darkmagenta',
                   '18':'olivedrab'}
-    # 'olive', 'lightsteelblue',
-    # 'plum', 'mediumspringgreen',
-    # 'lightsalmon', 'gold', 'burlywood']
-
     return hashList
 
   def plot_calma_data(self, loudnessValues, features, duration, type, **kwargs):
@@ -184,6 +180,32 @@ class CalmaPlot(FigureCanvas):
     return
 
   def calculate_graph_element_position(self, keyInfo, key, index, duration, average):
+    """
+    Calculates the position of the rectangular patch, relative to the event duration.
+
+    Parameters
+    ----------
+    keyInfo : String[]
+        Track meta-data such as label.
+    key : float[]
+        Features information.
+    index : int
+        Index in the keys we are processing.
+    duration : float
+        The duration of the track.
+    average : float
+        Average signal amplitude value of the track.
+
+    Return
+    ----------
+    ly : int
+        The y position of the patch.
+    lx : int
+        The x position of the patch.
+    rec : Rectangular
+        A rectangular patch object.
+    """
+
     # Rectangle takes (lowerleftpoint=(X, Y), width, height)
     xy = (float(key[0]), self.ax.get_ylim()[1])
 
@@ -212,6 +234,9 @@ class CalmaPlot(FigureCanvas):
     return lx, ly, rec
 
   def get_colour_map(self):
+    """
+    Returns a colour map for key changes to ensure consistent patterns across CALMA plots.
+    """
     try:
       return {'C# minor' : 'Grey', 'A major' : 'Red', 'D minor' : 'Green',
                    'Eb Purple': 'greenyellow', 'D major' : 'Pink', 'G major' : 'Orange',

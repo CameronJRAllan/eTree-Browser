@@ -9,7 +9,7 @@ import graph
 import multithreading
 
 class Calma():
-  def __init__(self):
+  def __init__(self, cache):
     """
     Initializes an instance of the Calma class.
 
@@ -22,6 +22,7 @@ class Calma():
     self.keyInfo = None
     self.loudnessValues = None
     self.segmentInfo = None
+    self.cache = cache
     self.calmaCache = cache.load('calmaCache')
 
   def get_features_track(self, trackAudioURL):
@@ -34,9 +35,6 @@ class Calma():
     trackAudioURL : string
         Audio URL of track we wish to examine.
     """
-    # self.keyInfo = None
-    # self.loudnessValues = None
-    # self.loudnessInfo = None
 
     # Get parent sub-event for this track
     self.sparql.setQuery("""
@@ -88,6 +86,7 @@ class Calma():
     self.segmentInfo = self.get_calma_data(calmaURL, 'segmentation')
     self.loudnessValues = self.get_calma_data(calmaURL, 'loudness')
     self.duration = self.get_duration_track(calmaURL)
+    # self.lock = kwargs['lock']
 
     try:
       kwargs['finished_set_new_track'].emit(self.loudnessValues, self.keyInfo, self.segmentInfo, self.duration, kwargs)
@@ -120,11 +119,9 @@ class Calma():
     # Check cache first for cache
     try:
       data = self.calmaCache[calmaURL][feature]
-      print('in cache')
       return data
     # If not in cache, continue to retrieve CALMA data
     except (ValueError, KeyError) as v:
-      print('exception: {0}'.format(v))
       pass
 
     return self.iterate_graph_for_feature(calmaURL, feature)
@@ -166,7 +163,7 @@ class Calma():
     g = rdflib.Graph()
     g.parse(r.raw, format="n3")
 
-    # Get blob for specific feature
+    # Get blob URL for specific feature
     q = """
         SELECT DISTINCT ?s ?o
          WHERE {{
@@ -174,22 +171,24 @@ class Calma():
          }}""".format("http://calma.linkedmusic.org/vocab/feature_blob")
     qres = g.query(q)
 
+    blobURL = None
     foundBlob = False
     for i, e in qres:
       if not foundBlob:
         blobURL = e
 
-    # Extract .tar.gz file and open first (only) file
-    blobContents = self.extract_zip(e)
+    if blobURL:
+      # Extract .tar.gz file and open first (only) file
+      blobContents = self.extract_zip(blobURL)
 
-    # Get events contained in the RDF data
-    events = self.get_feature_events(blobContents, feature)
+      # Get events contained in the RDF data
+      events = self.get_feature_events(blobContents, feature)
 
-    # Save in cache for next time
-    self.save_new_calma_cache(calmaURL, feature, events)
+      # Save in cache for next time
+      self.save_new_calma_cache(calmaURL, feature, events)
 
-    # Return the events to the user
-    return events
+      # Return the events to the user
+      return events
 
   def get_feature_events(self, blob, feature):
     """
@@ -249,17 +248,19 @@ class Calma():
     if events == None:
       return
 
+    # Get latest version of CALMA cache to ensure we don't overwrite
+    self.calmaCache = self.cache.load('calmaCache')
+
     # If no previous features set, create data structure
     if calmaURL not in self.calmaCache:
       self.calmaCache[calmaURL] = {}
       print('calaURL set for {0}'.format(calmaURL))
-    else:
-      print('url already in cache')
 
     # Add to cache and save
     self.calmaCache[calmaURL][feature] = events
-    cache.save(self.calmaCache, 'calmaCache')
-    # print('Saved for {0}, {1}'.format(calmaURL, feature))
+
+    self.cache.save(self.calmaCache, 'calmaCache')
+    print('Saved for {0}, {1}'.format(calmaURL, feature))
 
   def retrieve_events_blob(self, blob, featureType):
     """
@@ -409,9 +410,6 @@ class Calma():
           self.loudnessValues = [float(l) for l in q]
           loudnessSet = True
           return self.loudnessValues
-
-        # self.loudnessValues = blob[blob.find("af:value \"")+11:-4].strip().split(" ")
-        # self.loudnessValues = [float(l) for l in self.loudnessValues]
     except Exception as e:
       print('Exception: {0}'.format(e))
       return None
@@ -465,7 +463,29 @@ class Calma():
     return contents.decode("utf-8")
 
 class CalmaPlotRelease(QtWidgets.QDialog):
+  """
+  The CALMAPlotRelease class extends the QDialog class to provide a dialog window,
+  showing the feature analyses data for an entire performance.
+
+  The class consists of a constructor, and function for initiating individual threads
+  for retrieving the CALMA data, and a callback function for plotting and adding the
+  individual widgets afterwards.
+  """
+
   def __init__(self, app, title, feature):
+    """
+    Creates a dialog view, and begins generating a CALMA view of an entire performance.
+
+    Parameters
+    ----------
+    app : QMainWindow
+        A PyQt MainWindow instance (i.e. the main GUI).
+    title : String
+        Performance title.
+    feature : String
+        Feature identifier.
+    """
+
     super().__init__()
     self.app = app
     self.calma_release(title, feature)
@@ -473,6 +493,18 @@ class CalmaPlotRelease(QtWidgets.QDialog):
     self.plotContainerWidget = QtWidgets.QWidget()
 
   def calma_release(self, title, feature):
+    """
+    Takes a blob of CALMA data, and a feature desired, and returned a structured set of
+    chronological events for that feature.
+
+    Parameters
+    ----------
+    title : String
+        Performance title.
+    feature : String
+        Feature identifier.
+    """
+
     # Get CALMA references for release
     calmaLinks = self.app.sparql.get_calma_reference_release(title)
 
@@ -484,15 +516,37 @@ class CalmaPlotRelease(QtWidgets.QDialog):
     self.max = len(calmaLinks['results']['bindings'])
     self.plots = []
 
+    # For each track in results of performance
     for track in calmaLinks['results']['bindings']:
-      # Create a CALMA instance, and a new thread to get CALMA + plot
-      self.calma = Calma()
+
+      # Create a CALMA instance
+      self.calma = Calma(self.app.cache)
+
+      # Start thread to begin CALMA retrieval
       kwargs = {'title': track['label']['value'], 'feature': feature, 'release' : True}
       worker = multithreading.WorkerThread(self.calma.set_new_track_calma, track['calma']['value'], **kwargs)
       worker.qtSignals.finished_set_new_track.connect(self.callback_set_new_track)
       self.app.threadpool.start(worker)
 
   def callback_set_new_track(self, loudness, keys, segments, duration, trackInfo):
+    """
+    Takes a blob of CALMA data, and a feature desired, and returned a structured set of
+    chronological events for that feature.
+
+    Parameters
+    ----------
+    loudness : List
+        Array of loudness amplitude values.
+    keys : List
+        List of key change feature data.
+    segments : List
+        List of segmentation feature data.
+    duration : float
+        Duration of the track for calculating linear X-space.
+    trackInfo : Dict
+        Track meta-data containing feature type and label.
+    """
+
     # If not exceeded number of tracks
     if self.numberCalmaDisplayed < self.max:
       # Set correct feature
@@ -526,4 +580,5 @@ class CalmaPlotRelease(QtWidgets.QDialog):
         self.setLayout(self.layout)
         scroll.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
+        # Show widget to user
         self.show()

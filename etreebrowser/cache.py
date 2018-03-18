@@ -3,38 +3,58 @@ try:
    import cPickle as pickle
 except:
    import pickle
+import threading
 
-def save(obj, name):
-  """
-  Saves an object in memory to disk.
+class Cache():
+  def __init__(self):
+    self.lock = threading.Lock()
 
-  Parameters
-  ----------
-  obj : string
-      Object to save.
+  def save(self, obj, name):
+    """
+    Saves an object in memory to disk.
 
-  name : string
-      Name of the file (in the cache folder) to save to.
+    Parameters
+    ----------
+    obj : string
+        Object to save.
 
-  """
-  dir = os.path.join(os.path.dirname(__file__) + "/cache", name + '.pkl')
-  with open(dir, 'wb') as f:
-    pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-  return
+    name : string
+        Name of the file (in the cache folder) to save to.
 
-def load(name):
-  """
-  Loads an object from backing store (the /cache) folder, into memory.
+    """
+    dir = os.path.join(os.path.dirname(__file__) + "/cache", name + '.pkl')
+    self.lock.acquire()
+    print('Lock acquired')
+    try:
+      with open(dir, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+    finally:
+      self.lock.release()
+      print('Lock released')
+    return
 
-  Parameters
-  ----------
-  name : string
-      Name of the file (in the cache folder) to load.
-  """
+  def load(self, name):
+    """
+    Loads an object from backing store (the /cache) folder, into memory.
 
-  dir = os.path.join(os.path.dirname(__file__) + "/cache", name + '.pkl')
-  try:
-    with open(dir, 'rb') as f:
-      return pickle.load(f)
-  except FileNotFoundError:
-    return None
+    Parameters
+    ----------
+    name : string
+        Name of the file (in the cache folder) to load.
+    """
+    dir = os.path.join(os.path.dirname(__file__) + "/cache", name + '.pkl')
+    self.lock.acquire()
+
+    try:
+      with open(dir, 'rb') as f:
+        f = pickle.load(f)
+    finally:
+      self.lock.release()
+
+    return f
+
+    # try:
+    #   with open(dir, 'rb') as f:
+    #     return pickle.load(f)
+    # except FileNotFoundError:
+    #   return None

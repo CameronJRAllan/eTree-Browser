@@ -5,9 +5,10 @@ class Maps():
   global queriesExecuted
   queriesExecuted = 0
   def __init__(self):
-    self.keys = cache.load('preferences')
+    self.cache = cache.Cache()
+    self.keys = self.cache.load('preferences')
     self.geolocator = geocoders.GoogleV3(api_key=self.keys[2])
-    self.geoCache = cache.load('geoCache')
+    self.geoCache = self.cache.load('geoCache')
 
   def homepage_add(self, results, **kwargs):
     kwargs['homepage_start'].emit()
@@ -36,7 +37,7 @@ class Maps():
               kwargs['js_callback'].emit(str('%.3f' % (float(latitude))), str('%.3f' % (float(longitude))), str(result['label']['value']))
             else:
               self.geoCache[address] = ''
-            cache.save(self.geoCache, 'geoCache')
+            self.cache.save(self.geoCache, 'geoCache')
             print("Saved cache for: {0}".format(address))
           except Exception as e:
             print("Geocoder Error: " + str(e))
