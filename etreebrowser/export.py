@@ -5,11 +5,30 @@ import csv
 import json
 
 class Export():
+  """
+  Initializes an instance of the Export class.
+
+  The export class provides functionality for exporting data from a view in the interface into a data format for use
+  outside of the application..
+  """
   def __init__(self, app):
     self.app = app
     return
 
   def export_data(self, data, labels, dataFormat):
+    """
+    Gets a save path from the user, before initialising write of the file in the desired format.
+
+    Parameters
+    ----------
+    data : dict
+        The data we wish to save to a file.
+    labels : list
+        A list of labels.
+    dataFormat : string
+        The desired format to save the data in.
+    """
+
     # Present file dialog to user to save
     path = QtWidgets.QFileDialog.getSaveFileName(None, 'Save File', '/home')
 
@@ -23,6 +42,22 @@ class Export():
     self.save_file(path, dataParsed, dataFormat)
 
   def normalize_json(self, data, labels):
+    """
+    Takes a dictionary of data from the SPARQL end-point and normalises it prior to conversion / saving.
+
+    Parameters
+    ----------
+    data : dict
+        The data we wish to save to a file.
+    labels : list
+        A list of labels.
+
+    Returns
+    ----------
+    normalized : dict
+        A normalised dictionary of data to be saved.
+    """
+
     normalized = {}
     for property in data['results']['bindings']:
       if labels[property['p']['value']] not in normalized:
@@ -32,6 +67,19 @@ class Export():
     return normalized
 
   def save_file(self, path, data, dataFormat):
+    """
+    Takes a dictionary of data from the SPARQL end-point and normalises it prior to conversion / saving.
+
+    Parameters
+    ----------
+    path : tuple
+        A tuple containing the save path.
+    data : dict
+        The data we wish to save to a file.
+    dataFormat : string
+        The desired format to save the data in.
+    """
+
     if dataFormat == 'CSV':
       self.to_csv(path, data)
     elif dataFormat == 'JSON':
@@ -42,6 +90,17 @@ class Export():
       self.to_m3u(path, data)
 
   def to_m3u(self, path, data):
+    """
+    Saves some normalised data to M3U format.
+
+    Parameters
+    ----------
+    path : tuple
+        A tuple containing the save path.
+    data : dict
+        The data we wish to save to a file.
+    """
+
     # To store raw M3U data
     m3u = []
 
@@ -67,57 +126,133 @@ class Export():
         for item in m3u:
           outFile.write("#EXTINF:,{0} - {1} \n #EXTVLCOPT:network-caching=1000 \n".format(artistName,item['filename']))
           outFile.write(item['url'] + '\n')
+
+      # Close file
       outFile.close()
 
   def to_csv(self, path, data):
-    #data = map(lambda x: self.flatten_for_csv(x, "__"), data)
+    """
+    Saves some normalised data to CSV format.
+
+    Parameters
+    ----------
+    path : tuple
+        A tuple containing the save path.
+    data : dict
+        The data we wish to save to a file.
+    """
+
+    # Create a flattened data structure from the JSON
     data = self.flatten_for_csv(data, "___")
+
+    # Remove duplicates from the columns
     columns = [row for row in data]
     columns = list(set(columns))
 
     with open(path[0], 'w+') as outFile:
-      csv_w = csv.writer(outFile)
-      csv_w.writerow(columns)
+      # Write CSV to file
+      csvWriter = csv.writer(outFile)
+      csvWriter.writerow(columns)
 
-      for i_r in data:
-        csv_w.writerow(map(lambda x: data[i_r], columns))
+      for indexRow in data:
+        csvWriter.writerow(map(lambda x: data[indexRow], columns))
 
   def flatten_for_csv(self, inputDict, delimiter):
+    """
+    Saves some normalised data to CSV format.
+
+    Parameters
+    ----------
+    inputDict : dict
+        The data we wish to save to a file.
+    delimiter : string
+        Value which acts as a delimiter between items.
+
+    Returns
+    ----------
+    flatDict : dict
+        A flattened representation of our input dictionary.
+    """
+
     # Dict for storing our new, lat dictionary
     flatDict = {}
 
     # For each key in the dictionary
-    for i in inputDict.keys():
+    for singleKey in inputDict.keys():
       # If sub-dictionary found
-      if isinstance(inputDict[i], dict):
+      if isinstance(inputDict[singleKey], dict):
 
         # Call recursively for level down
-        levelDown = self.flatten_for_csv(inputDict[i], delimiter)
+        levelDown = self.flatten_for_csv(inputDict[singleKey], delimiter)
 
         # Seperate fields with delimiter
-        for e in levelDown.keys():
-          flatDict[i + delimiter + e] = levelDown[e]
+        for levelDownKey in levelDown.keys():
+          flatDict[singleKey + delimiter + levelDownKey] = levelDown[levelDownKey]
 
       # If not a sub-dictionary
       else:
-        flatDict[i] = inputDict[i]
+        flatDict[singleKey] = inputDict[singleKey]
 
+    # Return our flat dictionary
     return flatDict
 
   def to_json(self, path, data):
+    """
+    Saves some normalised data to JSON format.
+
+    Parameters
+    ----------
+    data : dict
+        The data we wish to save to a file.
+    path : tuple
+        A tuple containing the save path.
+    """
+
     with open(path[0], 'w+') as outFile:
       json.dump(data, outFile, indent=2)
 
   def to_xml(self, path, data):
+    """
+    Saves some normalised data to XML format.
+
+    Parameters
+    ----------
+    data : dict
+        The data we wish to save to a file.
+    path : tuple
+        A tuple containing the save path.
+    """
+
     with open(path[0], 'w+') as outFile:
+      # Write header to file
       outFile.write("""<?xml version="1.0" encoding="UTF-8"?>\n""")
+
+      # Performance tag opening
       outFile.write("""<performance>\n""")
+
+      # Write flat XML data (from recursive function)
       outFile.write(data)
+
+      # Performance tag closing
       outFile.write("""</performance>\n""")
 
   def xml_recursive(self, data, padding):
+    """
+    Saves some normalised data to XML format. To achieve this we build a translation
+    table using the str.maketrans function.
+
+    Parameters
+    ----------
+    data : dict
+        The data we wish to save to a file.
+    padding : string
+        Current padding value (indentation in the file).
+    """
+
+    # Empty results file
     results = []
 
+    # If need to call recursive function (step case)
     if type(data) is dict:
       # For each 'tag' to be created
       for nameOfTag in data:
@@ -136,6 +271,7 @@ class Export():
       # Append into single string, newline seperated
       return "\n".join(results)
 
+    # Base case
     return "%s%s" % (padding, data)
 
 
