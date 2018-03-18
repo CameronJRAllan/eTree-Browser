@@ -4,20 +4,23 @@ import application
 from PyQt5 import QtWidgets, QtGui, QtCore
 import alsaaudio
 import mock
-import export
-import lastfm
 from PyQt5.QtWebEngineWidgets import QWebEngineView
+import pytestqt
 
 # NOTE TO THE READER
 # These tests are designed in mind to be run with Py.Test, the IDE used during programming was PyCharm
 class TestApplication():
   @pytest.fixture(scope="function", autouse=True)
+  # Test
   def setup(self, qtbot):
     # Create dialog to show this instance
     self.dialog = QtWidgets.QMainWindow()
+    qtbot.add_widget(self.dialog)
 
     # Start main event loop
     self.prog = application.mainWindow(self.dialog)
+    # for i in self.dialog.children():
+    #   qtbot.addWidget(i)
 
   def test_volumeSlider(self):
     # Check default value

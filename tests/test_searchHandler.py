@@ -11,6 +11,7 @@ class TestSearchHandlerQt():
   def setup(self, qtbot):
     # Create dialog to show this instance
     self.dialog = QtWidgets.QMainWindow()
+    qtbot.add_widget(self.dialog)
 
     # Start main event loop
     self.prog = application.mainWindow(self.dialog)
@@ -142,7 +143,7 @@ class TestSearchHandlerQt():
     self.prog.searchForm.locationFilter.setText("Gettysburg, PA, USA")
     locations = self.prog.searchHandler.generate_mapped_locations()
 
-    assert(len(locations)==14972)
+    assert(len(locations)==11404)
 
   def test_get_mapped_countries(self):
     countries = self.prog.searchHandler.get_mapped_countries("Israel")

@@ -1,13 +1,8 @@
-import sys
-sys.path.append("..")
-from unittest import TestCase
 import pytest
 import sparql
-import pytest_mock
-from pytestqt import qtbot
 # NOTE TO THE READER
 # These tests are designed in mind to be run with Py.Test, the IDE used during programming was PyCharm
-class TestSPARQL(TestCase):
+class TestSPARQL():
   @pytest.fixture(scope="function", autouse=True)
   def setup(self):
     self.sparqlInstance = sparql.SPARQL()

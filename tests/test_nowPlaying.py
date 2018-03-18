@@ -10,6 +10,7 @@ class TestNowPlaying():
   def setup(self, qtbot):
     # Create dialog to show this instance
     self.dialog = QtWidgets.QMainWindow()
+    qtbot.add_widget(self.dialog)
 
     # Start main event loop
     self.prog = application.mainWindow(self.dialog)

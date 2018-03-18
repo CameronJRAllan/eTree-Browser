@@ -14,13 +14,14 @@ class TestLastFM(TestCase):
   @pytest.fixture(scope="function", autouse=True)
   def setup(self):
     self.lastfmHandler = lastfm.lastfmAPI('c957283a3dc3401e54b309ee2f18645b', 'f555ab4615197d1583eb2532b502c441')
+    self.cache = cache.Cache()
     return
 
   def test_hasSession(self):
     assert(self.lastfmHandler.hasSession() == True)
-    assert(self.lastfmHandler.sessionKey == cache.load('last_fm_sessionkey'))
+    assert(self.lastfmHandler.sessionKey == self.cache.load('last_fm_sessionkey'))
 
-  @mock.patch('cache.save')
+  @mock.patch('cache.Cache.save')
   def test_has_no_session(self, arg):
     self.lastfmHandler.logout()
     assert(self.lastfmHandler.hasSession() == False)

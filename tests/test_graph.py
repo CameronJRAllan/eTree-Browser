@@ -1,7 +1,6 @@
 import sys
 sys.path.append("..")
 from unittest import TestCase
-import export
 import pytest
 import graph
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -14,6 +13,7 @@ import random
 from PyQt5 import QtWidgets, QtCore
 import application
 import mock
+import cache
 
 def fake_draw_canvas():
   return
@@ -22,7 +22,8 @@ class TestGraph(TestCase):
   @pytest.fixture(scope="function", autouse=True)
   def setup(self):
     self.graphInstance = graph.CalmaPlot(600,600,100, True)
-    self.calma = calma.Calma()
+    self.cache = cache.Cache()
+    self.calma = calma.Calma(self.cache)
 
   def test_constructor_graph(self):
     assert(isinstance(self.graphInstance.fig, Figure))

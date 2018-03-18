@@ -3,6 +3,7 @@ sys.path.append("..")
 from unittest import TestCase
 import pytest
 import calma
+import cache
 import mock
 import cache
 from PyQt5 import QtCore
@@ -13,7 +14,8 @@ class SignalsMock(QtCore.QObject):
 class TestCalma(TestCase):
   @pytest.fixture(scope="function", autouse=True)
   def setup(self):
-    self.calmaInstance = calma.Calma()
+    self.cache = cache.Cache()
+    self.calmaInstance = calma.Calma(self.cache)
 
   def test_initial_state(self):
     assert(self.calmaInstance.keyInfo == None)
@@ -134,7 +136,7 @@ class TestCalma(TestCase):
     assert(type(loudness) is list)
     assert(len(loudness) == 25)
 
-  @mock.patch('cache.save')
+  @mock.patch('cache.Cache.save')
   def test_save_new_calma_cache(self, cache):
     self.calmaInstance.save_new_calma_cache('url', 'feature', 'events')
     # assert(self.calmaInstance.)
