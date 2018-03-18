@@ -16,6 +16,7 @@ try:
   import multithreading
   import graph
   import audio
+  import json
   import requests
   import calma
   import export
@@ -42,6 +43,11 @@ class mainWindow(UI):
     self.setup_os_specific_properties()
     self.add_audio_output_devices()
 
+    self.cache = cache.Cache()
+    # calmac = cache.load('calmaCache')
+    # with open('calmaCache.json', 'w') as fp:
+    #   json.dump(calmac, fp)
+
     # Set-up handlers for classes
     self.searchHandler = search.SearchHandler(self)
     self.audioHandler = audio.Audio(self)
@@ -49,7 +55,7 @@ class mainWindow(UI):
     self.exporter = export.Export(self)
     self.lastfmHandler = lastfm.lastfmAPI('c957283a3dc3401e54b309ee2f18645b', 'f555ab4615197d1583eb2532b502c441')
     self.treeViewHandler = BrowseTreeViewHandler(self)
-    self.calmaHandler = calma.Calma()
+    self.calmaHandler = calma.Calma(self.cache)
     self.nowPlayingHandler = NowPlaying(self)
     self.browseTreeProperties = TreePropertiesView(self)
     self.browseListHandler = BrowseListHandler(self)
@@ -74,9 +80,7 @@ class mainWindow(UI):
     self.threadpool = QtCore.QThreadPool()
     self.audioThreadpool = QtCore.QThreadPool()
 
-    self.latlng = cache.load('locationLatLng')
-
-    # self.c = calma.CalmaPlotRelease(self, 'Drive-By Truckers Live at B&A Warehouse on 2004-11-26', 'segmentation')
+    self.latlng = self.cache.load('locationLatLng')
 
     # If we already have a session key stored for Last.FM
     if self.lastfmHandler.hasSession() == True:
@@ -246,7 +250,7 @@ class mainWindow(UI):
     self.track_history.append([track, artist, time.strftime('%Y-%m-%d %H:%M:%S'), label, url])
 
     # Save and reload in the UI
-    cache.save(self.track_history, 'play_history')
+    self.cache.save(self.track_history, 'play_history')
     self.initialize_history_table()
 
   def initialize_history_table(self):
@@ -257,7 +261,7 @@ class mainWindow(UI):
 
     # Clear previous and load data from backing store
     self.savedSearchesList.clear()
-    self.savedSearches = cache.load('savedSearches')
+    self.savedSearches = self.cache.load('savedSearches')
 
     # Add in reverse order
     for item in reversed(self.savedSearches):
@@ -269,7 +273,7 @@ class mainWindow(UI):
     # self.historyTableWidget.doubleClicked.connect(self.history_table_clicked)
 
     # Load from file the previous history
-    self.track_history = cache.load('play_history')
+    self.track_history = self.cache.load('play_history')
 
     # Set-up properties
     self.historyTableWidget.setColumnCount(4)
@@ -497,10 +501,10 @@ class BrowseListHandler():
     self.app = app
 
     # Load lists of artists, genres, etc
-    self.artistList = sorted(cache.load('artistList'))
+    self.artistList = sorted(self.app.cache.load('artistList'))
     self.artistList[0] = 'Unknown Artist'
-    self.genreList = sorted(cache.load('genreList'))
-    self.locationList = cache.load('newReversedGroupedLocations')
+    self.genreList = sorted(self.app.cache.load('genreList'))
+    self.locationList = self.app.cache.load('newReversedGroupedLocations')
 
     self.artistListModel = QtGui.QStandardItemModel(self.app.browseList)
     self.genreListModel = QtGui.QStandardItemModel(self.app.browseList)
@@ -706,8 +710,18 @@ class TreePropertiesView(QtWidgets.QTreeView):
               'http://etree.linkedmusic.org/vocab/isSubEventOf' : 'Sub Events',
               'http://etree.linkedmusic.org/vocab/number' : 'Track Number',
               'http://purl.org/ontology/mo/performed' : 'Performances',
-              'http://xmlns.com/foaf/0.1/name' : 'Name'
-              }
+              'http://xmlns.com/foaf/0.1/name' : 'Name',
+              'http://etree.linkedmusic.org/vocab/location' : 'Location',
+              'http://etree.linkedmusic.org/vocab/name' : 'Name',
+              'http://purl.org/ontology/similarity/subjectOf' : 'Subject Of',
+              'http://purl.org/ontology/similarity/method' : 'Method',
+              'http://purl.org/ontology/similarity/object': 'Object',
+              'http://purl.org/ontology/similarity/subject' : 'Subject',
+              'http://www.w3.org/ns/prov#wasAttributedTo' : 'Attributed To',
+              'http://xmlns.com/foaf/0.1/mbox' : 'MBox',
+              'http://calma.linkedmusic.org/vocab/data' : 'Vocal Data',
+              'http://purl.org/ontology/similarity/objectOf' : 'Similarity'
+               }
 
     return labels
 
@@ -748,7 +762,7 @@ class TreePropertiesView(QtWidgets.QTreeView):
             labelItem = QtGui.QStandardItem(labels[key])
           except KeyError as e:
             labelItem = QtGui.QStandardItem(key)
-
+            print(e)
           try:
             if labels[key] == 'Label':
               self.model().itemFromIndex(index).setText(treeViewPropertiesDict[key][0])
@@ -882,36 +896,38 @@ class BrowseTreeViewHandler():
         The index in the treeview (i.e. the performance), clicked.
     """
 
-    # If not a child (i.e. a track belonging to a release
-    if type(self.main.treeViewModel.itemFromIndex(index)) != None:
-      if self.main.treeViewModel.itemFromIndex(index).parent() == None:
-        # Retrieve tracklist from SPARQL end-point
-        tracklist = self.main.sparql.get_tracklist_grouped(str(index.data()))
-        self.currentReleaseData = tracklist['results']['bindings']
+    try:
+      # If not a child (i.e. a track belonging to a release
+      if type(self.main.treeViewModel.itemFromIndex(index)) != None:
+        if self.main.treeViewModel.itemFromIndex(index).parent() == None:
+          # Retrieve tracklist from SPARQL end-point
+          tracklist = self.main.sparql.get_tracklist_grouped(str(index.data()))
+          self.currentReleaseData = tracklist['results']['bindings']
 
-        i = 0
-        preventDuplicates = []
-        for track in tracklist['results']['bindings']:
-          if track['num']['value'] not in preventDuplicates:
-            # Add to treeView
-            listItem = QtGui.QStandardItem(str(track['num']['value']) + '. ' + track['label']['value'])
-            preventDuplicates.append(track['num']['value'])
-            self.main.treeViewModel.itemFromIndex(index).setChild(i, listItem)
-            i += 1
+          i = 0
+          preventDuplicates = []
+          for track in tracklist['results']['bindings']:
+            if track['num']['value'] not in preventDuplicates:
+              # Add to treeView
+              listItem = QtGui.QStandardItem(str(track['num']['value']) + '. ' + track['label']['value'])
+              preventDuplicates.append(track['num']['value'])
+              self.main.treeViewModel.itemFromIndex(index).setChild(i, listItem)
+              i += 1
 
-        self.main.browseTreeView.collapseAll()
-        self.main.browseTreeView.expand(index)
+          self.main.browseTreeView.collapseAll()
+          self.main.browseTreeView.expand(index)
 
-        try:
-          self.main.browseTreePropertiesLayout.takeAt(1)
-        except AttributeError:
-          self.main.browseTreePropertiesLayout = QtWidgets.QBoxLayout(1)
+          try:
+            self.main.browseTreePropertiesLayout.takeAt(1)
+          except AttributeError:
+            self.main.browseTreePropertiesLayout = QtWidgets.QBoxLayout(1)
 
-        self.main.browseTreePropertiesLayout.setContentsMargins(0, 0, 0, 0)
-        self.main.browseTreePropertiesLayout.addWidget(self.main.browseTreeProperties.retrieve_release_info(index.data()))
+          self.main.browseTreePropertiesLayout.setContentsMargins(0, 0, 0, 0)
+          self.main.browseTreePropertiesLayout.addWidget(self.main.browseTreeProperties.retrieve_release_info(index.data()))
 
-        self.main.additionalInfoFrame.setLayout(self.main.browseTreePropertiesLayout)
-
+          self.main.additionalInfoFrame.setLayout(self.main.browseTreePropertiesLayout)
+    except AttributeError:
+      return
   def play_tree_item(self, index):
     """
     Called when an item in the browse tab treeview is double-clicked, starting audio playback
@@ -924,6 +940,7 @@ class BrowseTreeViewHandler():
 
     # If this is a release, and not a singular track
     if self.main.treeViewModel.itemFromIndex(index).parent() == None:
+      return
       # Play every track in this recording
       tracklist = self.main.sparql.get_tracklist(index.data())
       self.main.debugDialog.add_line("{0}: retrieved tracklist for release {1}".format(sys._getframe().f_code.co_name, index.data()))
@@ -1173,7 +1190,10 @@ class TableHandler():
       self.resultsTable.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
       self.layout.setContentsMargins(0,0,0,11)
       # self.resultsTable.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
-      self.resultsTable.setColumnWidth(0, 700)
+      self.resultsTable.setColumnWidth(0, 600)
+      self.resultsTable.setColumnWidth(1, 300)
+      self.resultsTable.setColumnWidth(2, 200)
+      self.resultsTable.setColumnWidth(3, 150)
 
       # Add focus signal handlers
       self.resultsTable.itemClicked.connect(self.prog.searchHandler.view.move_focus)
@@ -1187,8 +1207,6 @@ class TableHandler():
       self.resultsTable.setParent(self.widget)
       self.layout.addWidget(self.resultsTable, 0, 0, 1, 1)
 
-      self.resultsTable.setColumnWidth(3, 150)
-      self.resultsTable.setColumnWidth(0, 250)
 
       self.resultsTable.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
       self.resultsTable.customContextMenuRequested.connect(self.open_table_menu)

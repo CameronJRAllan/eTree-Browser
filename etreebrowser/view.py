@@ -37,7 +37,7 @@ class View():
     """
     self.app = app
     self.search = search
-    self.calma = calma.Calma()
+    self.calma = calma.Calma(self.app.cache)
     self.hasCalma = hasCalma
     self.views = views
 
@@ -209,10 +209,10 @@ class View():
     # Retrieve and set CALMA data
     # self.calma.set_new_track_calma(calmaURL)
     try:
-      self.calma = calma.Calma()
-      kwargs = {'title' : item.data()}
+      self.calma = calma.Calma(self.app.cache)
+      kwargs = {'title' : item.data()} # CAUSES ERROR ON OCCASION
       worker = multithreading.WorkerThread(self.calma.set_new_track_calma, calmaURL, **kwargs)
-      worker.qt_signals.finished_set_new_track.connect(self.calma_set_track_callback_signal)
+      worker.qtSignals.finished_set_new_track.connect(self.calma_set_track_callback_signal)
       self.app.threadpool.start(worker)
     except Exception as e:
       print(('{0}').format(e))

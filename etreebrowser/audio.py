@@ -121,6 +121,7 @@ class Audio():
       if (byteCount // 176400) > 30 and not self.hasScrobbled:
         self.hasScrobbled = True
         self.scrobble_track.emit()
+
       # Even an empty byte stream has length 3
       if len(str(raw_audio_chunk)) == 3:
         self.isPlaying = False
@@ -397,8 +398,10 @@ class Audio():
       for track in tracklist['results']['bindings']:
         # If we have not found a format yet
         if found is False:
+
           # If we find a suitable format
           if track['audio']['value'].lower().endswith(format):
+
             # Store and ensure we don't continue checking
             found = True
             foundFormat = format
@@ -417,6 +420,9 @@ class Audio():
     return audioList
 
   def play_pause(self):
+    """
+    Plays or pauses playback based on current attributes set.
+    """
     try:
       # If we're currently playing a track
       if self.isPlaying:
@@ -432,6 +438,10 @@ class Audio():
       return
 
   def lock_progress_user_drag(self):
+    """
+    Implements mutual exclusion if the user is currently dragging the slider.
+    """
+
     self.userDragging = True
 
   def track_seek(self):
