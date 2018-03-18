@@ -21,19 +21,19 @@ class TestMultithreading():
   #   with pytest.raises(Exception):
   #     assert(self.errorSuccess == False)
   #     self.WorkerThread = multithreading.WorkerThread(self.threadFuncError, None)
-  #     self.WorkerThread.qt_signals.error.connect(self.threadFuncError)
+  #     self.WorkerThread.qtSignals.error.connect(self.threadFuncError)
   #     self.WorkerThread.run()
 
   def test_run_thread_success(self):
     assert(self.threadSuccess == False)
     self.WorkerThread = multithreading.WorkerThread(self.threadFuncSuccess, None)
-    self.WorkerThread.qt_signals.error.connect(self.threadFuncError)
+    self.WorkerThread.qtSignals.error.connect(self.threadFuncError)
     self.WorkerThread.run()
     assert(self.threadSuccess == True)
 
   def test_run_thread_finished(self):
     assert(self.threadFinished == False)
     self.WorkerThread = multithreading.WorkerThread(self.threadFuncFinished, None)
-    self.WorkerThread.qt_signals.error.connect(self.threadFuncError)
+    self.WorkerThread.qtSignals.error.connect(self.threadFuncError)
     self.WorkerThread.run()
     assert(self.threadFinished == True)

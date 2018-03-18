@@ -132,10 +132,10 @@ class TestAudio():
 
     self.prog.audioHandler.ffmpeg_pipeline(url, **self.signalStubs.kwargs)
     # worker = multithreading.WorkerThread(self.prog.audioHandler.ffmpeg_pipeline, url, seek=0)
-    # worker.qt_signals.track_finished.connect(self.signalStubs.signal_slot_stub)
-    # worker.qt_signals.update_track_progress.connect(self.signalStubs.audio_success)
-    # worker.qt_signals.update_track_duration.connect(self.signalStubs.signal_slot_stub)
-    # worker.qt_signals.scrobble_track.connect(self.signalStubs.signal_slot_stub)
+    # worker.qtSignals.track_finished.connect(self.signalStubs.signal_slot_stub)
+    # worker.qtSignals.update_track_progress.connect(self.signalStubs.audio_success)
+    # worker.qtSignals.update_track_duration.connect(self.signalStubs.signal_slot_stub)
+    # worker.qtSignals.scrobble_track.connect(self.signalStubs.signal_slot_stub)
     # self.prog.audioThreadpool.start(worker)
 
     while (time.time() - startTime < 15):
