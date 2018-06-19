@@ -3,9 +3,9 @@
 Final year project supervised by Sean Bechhofer, as part of COMP34100, and centered on meta-data for live music and the eTree . As of July 2018, now open-sourced under an MIT license.
 
 ### Prerequisites
-[Python 3](https://www.python.org/download/releases/3.0/)
-[FFMPEG](https://www.ffmpeg.org/)
-[PortAudio (Linux / Mac Only)](http://www.portaudio.com/)
+[Python 3](https://www.python.org/download/releases/3.0/)     
+[FFMPEG](https://www.ffmpeg.org/)    
+[PortAudio (Linux / Mac Only)](http://www.portaudio.com/)    
 
 ### Python package dependencies:    
 
